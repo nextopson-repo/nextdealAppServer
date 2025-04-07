@@ -35,6 +35,7 @@ EXPOSE 8080
 
 # Set environment variables
 ENV NODE_ENV=development
+ENV PORT=8080
 
 # Start the app in development mode
 CMD ["npm", "run", "dev"]
@@ -59,6 +60,7 @@ EXPOSE 8080
 
 # Set environment variables
 ENV NODE_ENV=production
+ENV PORT=8080
 
 # Start the app
 CMD ["node", "dist/index.js"]
