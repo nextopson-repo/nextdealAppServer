@@ -10,29 +10,31 @@ const options: Options = {
       description: 'API documentation for NextDeal Backend',
       contact: {
         name: 'API Support',
-        email: 'support@nextdeal.com'
-      }
+        email: 'support@nextdeal.com',
+      },
     },
     servers: [
       {
         url: 'http://localhost:3000',
-        description: 'Development server'
-      }
+        description: 'Development server',
+      },
     ],
     components: {
       securitySchemes: {
         bearerAuth: {
           type: 'http',
           scheme: 'bearer',
-          bearerFormat: 'JWT'
-        }
-      }
+          bearerFormat: 'JWT',
+        },
+      },
     },
-    security: [{
-      bearerAuth: []
-    }]
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
   apis: ['./src/api/routes/**/*.ts'], // Path to the API routes
 };
 
-export const swaggerSpec = swaggerJsdoc(options); 
+export const swaggerSpec = swaggerJsdoc(options);

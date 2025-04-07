@@ -1,14 +1,25 @@
 import express from 'express';
 
-import { sendVerificationCode, verifyCode, sendVerificationCode_mobile_app } from '../../controllers/auth/ContactVerifications';
-import { login, generateUuidToken, verifyUuidToken, refresh, verifyCode_mobile_app } from '../../controllers/auth/Login';
-import { logout } from '../../controllers/auth/Logout';
 import {
-  changePassword,
-  resetPassword
-} from '../../controllers/auth/ResetPassword';
+  sendVerificationCode,
+  verifyCode,
+  sendVerificationCode_mobile_app,
+} from '../../controllers/auth/ContactVerifications';
+import {
+  login,
+  generateUuidToken,
+  verifyUuidToken,
+  refresh,
+  verifyCode_mobile_app,
+} from '../../controllers/auth/Login';
+import { logout } from '../../controllers/auth/Logout';
+import { changePassword, resetPassword } from '../../controllers/auth/ResetPassword';
 import { signup } from '../../controllers/auth/Signup';
-import { generateUploadUrl, addDocumentUpload, getDocumentFromBucket } from '../../controllers/awsFuctions/AwsFunctions';
+import {
+  generateUploadUrl,
+  addDocumentUpload,
+  getDocumentFromBucket,
+} from '../../controllers/awsFuctions/AwsFunctions';
 import { authenticate } from '../../middlewares/auth/Authenticate';
 
 const Router = express.Router();

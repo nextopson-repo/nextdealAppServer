@@ -38,8 +38,7 @@ Router.post('/booked/get-booked-details', getBookedEventDetails);
 Router.post('/booked/cancel', cancelBooking);
 
 // EVENT BOOKING TRANSACTION
-Router.post('/booking/verify-payment',verifyTicketPayment);
-
+Router.post('/booking/verify-payment', verifyTicketPayment);
 
 // TICKET
 Router.post('/booked/ticket/get-booked', getBookedAllTicket);

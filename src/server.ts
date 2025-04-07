@@ -26,7 +26,7 @@ const dataSourceOptions: DataSourceOptions = {
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
   entities: [],
   synchronize: process.env.NODE_ENV !== 'production',
-  logging: process.env.NODE_ENV === 'development'
+  logging: process.env.NODE_ENV === 'development',
 };
 
 const AppDataSource = new DataSource(dataSourceOptions);
@@ -35,11 +35,15 @@ const AppDataSource = new DataSource(dataSourceOptions);
 // app.use(express.static('dist/public'));
 
 // Swagger UI setup
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  explorer: true,
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: "NextDeal API Documentation"
-}));
+app.use(
+  '/api-docs',
+  swaggerUi.serve,
+  swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'NextDeal API Documentation',
+  })
+);
 
 // Initialize the DataSource
 AppDataSource.initialize()

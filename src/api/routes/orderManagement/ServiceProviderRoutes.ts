@@ -1,23 +1,20 @@
 import express from 'express';
 
 import {
-    getYourServices,
-    // addService,
-    acceptService,
-    rejectService,
-    completeService,
-
-    addOrUpdateProvidedService,
-    getProvidedService,
-    deleteProvidedService,
-
-    getServiceJobsBy_Year_Month_Week,
-    totalAmountBy_Year_Month_Week,
-    getAvgPricePerMonthForCurrentYear,
-    compareAvgPriceWithPreviousMonth,
-    totalSalesSubCategoryWise,
-
-    getQuestions,
+  getYourServices,
+  // addService,
+  acceptService,
+  rejectService,
+  completeService,
+  addOrUpdateProvidedService,
+  getProvidedService,
+  deleteProvidedService,
+  getServiceJobsBy_Year_Month_Week,
+  totalAmountBy_Year_Month_Week,
+  getAvgPricePerMonthForCurrentYear,
+  compareAvgPriceWithPreviousMonth,
+  totalSalesSubCategoryWise,
+  getQuestions,
 } from '@/api/controllers/orderManagement/ServiceProvider';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 

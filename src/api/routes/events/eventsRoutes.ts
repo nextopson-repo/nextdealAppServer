@@ -11,7 +11,7 @@ import {
   getPopularEvents,
   getUserEvent,
   searchEventsWithFilters,
-  eventAndBookedEventFilter
+  eventAndBookedEventFilter,
 } from '@/api/controllers/events/eventController';
 import { deleteTicket, getTicket, getTicketList, updateTicket } from '@/api/controllers/events/ticketController';
 import express from 'express';
@@ -33,7 +33,7 @@ Router.post('/get-master-data', eventDetailsOptions);
 Router.post('/get-popular-events', getPopularEvents);
 Router.post('/get-user-event', getUserEvent);
 Router.post('/delete-event', deleteUserEvent);
-Router.post('/search-n-filter', searchEventsWithFilters)
+Router.post('/search-n-filter', searchEventsWithFilters);
 // Router.post('/filter-event-and-event-booking', eventAndBookedEventFilter);
 
 // EVENT BOOKING

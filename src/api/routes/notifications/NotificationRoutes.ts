@@ -1,7 +1,7 @@
 import express from 'express';
 
 import notificationController from '@/api/controllers/notifications/Notification';
-import { createTemplates } from "@/api/controllers/notifications/Template";
+import { createTemplates } from '@/api/controllers/notifications/Template';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 
 const Router = express.Router();

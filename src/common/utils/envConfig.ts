@@ -29,5 +29,5 @@ export const env = cleanEnv(process.env, {
 
   // Razorpay
   RAZORPAY_TEST_KEY_ID: str({ default: '' }),
-  RAZORPAY_TEST_KEY_SECRET: str({ default: '' })
+  RAZORPAY_TEST_KEY_SECRET: str({ default: '' }),
 });

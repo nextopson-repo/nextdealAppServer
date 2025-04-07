@@ -1,6 +1,21 @@
 import express from 'express';
 
-import { getUser, getPersonalDetails, getEducationalDetails, getFinancialDetails, getProfessionalDetails, setPersonalDetails, setProfessionalDetails, setEducationalDetails, setFinancialDetails, getPersonalDetailsCustomer, setPersonalDetailsCustomer, getBusinessDetails, createOrUpdateBusinessDetails, checkForProfileCompletion } from '../../controllers/profile/Profile';
+import {
+  getUser,
+  getPersonalDetails,
+  getEducationalDetails,
+  getFinancialDetails,
+  getProfessionalDetails,
+  setPersonalDetails,
+  setProfessionalDetails,
+  setEducationalDetails,
+  setFinancialDetails,
+  getPersonalDetailsCustomer,
+  setPersonalDetailsCustomer,
+  getBusinessDetails,
+  createOrUpdateBusinessDetails,
+  checkForProfileCompletion,
+} from '../../controllers/profile/Profile';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 
 const Router = express.Router();
@@ -23,6 +38,5 @@ Router.post('/your-personal-details-customer', getPersonalDetailsCustomer);
 Router.post('/personal-customer', setPersonalDetailsCustomer);
 
 Router.post('/check-for-profile-completion', checkForProfileCompletion);
-
 
 export default Router;

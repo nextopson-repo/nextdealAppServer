@@ -159,6 +159,7 @@ This project uses Husky to manage Git hooks for code quality and consistency.
 ### Pre-commit Hook
 
 The pre-commit hook runs lint-staged, which:
+
 - Formats code using Prettier
 - Fixes linting issues using ESLint
 
@@ -179,6 +180,7 @@ footer
 ```
 
 Where:
+
 - `type`: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
 - `scope`: optional scope of the commit (e.g., auth, api)
 - `subject`: short description of the change
@@ -186,6 +188,7 @@ Where:
 - `footer`: optional footer with breaking changes or issue references
 
 Example:
+
 ```
 feat(auth): add JWT authentication
 
