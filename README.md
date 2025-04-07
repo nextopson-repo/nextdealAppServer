@@ -46,7 +46,7 @@ Developed to streamline backend development, this boilerplate is your solution f
 
 ### Step 2: ⚙️ Environment Configuration
 
-- Create `.env`: Copy `.env.template` to `.env`
+- Create `.env`: Copy `.env.example` to `.env`
 - Update `.env`: Fill in necessary environment variables
 
 ### Step 3: 🏃‍♂️ Running the Project
@@ -102,3 +102,95 @@ Developed to streamline backend development, this boilerplate is your solution f
 We'd love to hear your feedback and suggestions for further improvements. Feel free to contribute and join us in making backend development cleaner and faster!
 
 🎉 Happy coding!
+
+## Docker Setup
+
+This project includes Docker configuration for both development and production environments.
+
+### Development
+
+To start the development environment:
+
+```bash
+# Start the development environment
+npm run docker:dev
+
+# Rebuild and start the development environment
+npm run docker:dev:build
+```
+
+### Production
+
+To start the production environment:
+
+```bash
+# Start the production environment
+npm run docker:prod
+
+# Rebuild and start the production environment
+npm run docker:prod:build
+```
+
+### Other Docker Commands
+
+```bash
+# Stop all containers
+npm run docker:down
+
+# View logs
+npm run docker:logs
+```
+
+### Environment Variables
+
+You can customize the Docker setup by setting the following environment variables:
+
+- `NODE_ENV`: The environment (development or production)
+- `PORT`: The port to expose the application on (default: 8080)
+- `DB_PORT`: The port to expose the database on (default: 3306)
+- `LOCAL_DB_USERNAME`: The database username (default: root)
+- `LOCAL_DB_PASSWORD`: The database password (default: password)
+- `LOCAL_DB_NAME`: The database name (default: nextdeal)
+
+## Git Hooks with Husky
+
+This project uses Husky to manage Git hooks for code quality and consistency.
+
+### Pre-commit Hook
+
+The pre-commit hook runs lint-staged, which:
+- Formats code using Prettier
+- Fixes linting issues using ESLint
+
+### Commit Message Hook
+
+The commit-msg hook enforces commit message conventions using commitlint.
+
+### Commit Message Format
+
+Follow the conventional commit format:
+
+```
+type(scope): subject
+
+body
+
+footer
+```
+
+Where:
+- `type`: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+- `scope`: optional scope of the commit (e.g., auth, api)
+- `subject`: short description of the change
+- `body`: optional detailed description
+- `footer`: optional footer with breaking changes or issue references
+
+Example:
+```
+feat(auth): add JWT authentication
+
+Implement JWT-based authentication with refresh tokens.
+Add middleware to protect routes.
+
+Closes #123
+```

@@ -3,11 +3,13 @@ import cors from 'cors';
 import express, { Express } from 'express';
 import helmet from 'helmet';
 import { pino } from 'pino';
+import swaggerUi from 'swagger-ui-express';
 
 import errorHandler from '@/common/middleware/errorHandler';
 import rateLimiter from '@/common/middleware/rateLimiter';
 import requestLogger from '@/common/middleware/requestLogger';
 import { env } from '@/common/utils/envConfig';
+import { swaggerSpec } from './config/swagger';
 
 import authRouter from '../src/api/routes/auth/AuthRoutes';
 
@@ -33,7 +35,12 @@ const AppDataSource = new DataSource({
 // Serve the public folder for Swagger UI assets
 // app.use(express.static('dist/public'));
 
-// app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
+// Swagger UI setup
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  explorer: true,
+  customCss: '.swagger-ui .topbar { display: none }',
+  customSiteTitle: "NextDeal API Documentation"
+}));
 
 // Initialize the DataSource
 AppDataSource.initialize()
@@ -68,7 +75,6 @@ app.use(requestLogger);
 
 // Routes mounting
 app.use('/api/v1/auth', authRouter);
-
 
 // Error handlers
 app.use(errorHandler());

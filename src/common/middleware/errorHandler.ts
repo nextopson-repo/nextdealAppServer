@@ -2,12 +2,27 @@ import { ErrorRequestHandler, RequestHandler } from 'express';
 import { StatusCodes } from 'http-status-codes';
 
 const unexpectedRequest: RequestHandler = (_req, res) => {
-  res.sendStatus(StatusCodes.NOT_FOUND);
+  res.status(StatusCodes.NOT_FOUND).json({
+    status: 'error',
+    message: 'Route not found'
+  });
 };
 
 const addErrorToRequestLog: ErrorRequestHandler = (err, _req, res, next) => {
+  console.error('Error:', err);
   res.locals.err = err;
   next(err);
 };
 
-export default () => [unexpectedRequest, addErrorToRequestLog];
+const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+  const statusCode = err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
+  const message = err.message || 'Something went wrong';
+  
+  res.status(statusCode).json({
+    status: 'error',
+    message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+};
+
+export default () => [unexpectedRequest, addErrorToRequestLog, errorHandler];

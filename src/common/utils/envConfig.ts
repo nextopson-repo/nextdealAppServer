@@ -12,17 +12,22 @@ export const env = cleanEnv(process.env, {
   COMMON_RATE_LIMIT_WINDOW_MS: num({ devDefault: testOnly(1000) }),
 
   // AWS DB environment variables
-  DEV_AWS_HOST: host(),
-  DEV_AWS_USERNAME: str(),
-  DEV_AWS_PASSWORD: str(),
-  DEV_AWS_DB_NAME: str(),
+  DEV_AWS_HOST: host({ default: 'localhost' }),
+  DEV_AWS_USERNAME: str({ default: 'root' }),
+  DEV_AWS_PASSWORD: str({ default: 'password' }),
+  DEV_AWS_DB_NAME: str({ default: 'nextdeal' }),
 
   // LOCAL DB environment variables
-  LOCAL_DB_USERNAME: str(),
-  LOCAL_DB_PASSWORD: str(),
-  LOCAL_DB_NAME: str(),
+  LOCAL_DB_HOST: host({ default: 'localhost' }),
+  LOCAL_DB_USERNAME: str({ default: 'root' }),
+  LOCAL_DB_PASSWORD: str({ default: 'password' }),
+  LOCAL_DB_NAME: str({ default: 'nextdeal' }),
+
+  // JWT
+  ACCESS_SECRET_KEY: str({ default: 'your_access_secret_key' }),
+  REFRESH_SECRET_KEY: str({ default: 'your_refresh_secret_key' }),
 
   // Razorpay
-  RAZORPAY_TEST_KEY_ID: str(),
-  RAZORPAY_TEST_KEY_SECRET: str()
+  RAZORPAY_TEST_KEY_ID: str({ default: '' }),
+  RAZORPAY_TEST_KEY_SECRET: str({ default: '' })
 });
