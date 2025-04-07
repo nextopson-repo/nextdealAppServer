@@ -11,7 +11,8 @@ import rateLimiter from '@/common/middleware/rateLimiter';
 import requestLogger from '@/common/middleware/requestLogger';
 import { swaggerSpec } from './config/swagger';
 
-import authRouter from '../src/api/routes/auth/AuthRoutes';
+// Import only the hello route
+import helloRouter from './api/routes/hello/HelloRoutes';
 
 const logger = pino({ name: 'server start' });
 const app: Express = express();
@@ -75,8 +76,8 @@ app.use(rateLimiter);
 // Request logging
 app.use(requestLogger);
 
-// Routes mounting
-app.use('/api/v1/auth', authRouter);
+// Routes mounting - only the hello route
+app.use('/api/v1/hello', helloRouter);
 
 // Error handlers
 app.use(errorHandler());

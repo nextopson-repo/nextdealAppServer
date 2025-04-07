@@ -1,21 +1,22 @@
-const { build } = require('esbuild');
-const { dependencies } = require('./package.json');
+import { build } from 'esbuild';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
-const externalDependencies = Object.keys(dependencies || {});
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+const isDev = process.env.NODE_ENV === 'development';
 
 build({
-  entryPoints: ['src/**/*.ts'], // Main entry point, imports will be followed
+  entryPoints: ['src/index.ts'],
   bundle: true,
+  outfile: 'dist/index.js',
   platform: 'node',
-  external: ['typeorm', 'reflect-metadata'], // Mark TypeORM as external// Avoid bundling external dependencies
-  outdir: 'dist', // Output directory
-  sourcemap: true, // Set to true for production
-  target: ['es2020'], // JavaScript target
-  tsconfig: './tsconfig.json', // TypeScript config
-  format: 'cjs',
-  // external: ['src/swagger_output.json','swagger-ui-express']                    // CommonJS format
-})
-  .then(() => {
-    console.log('Build finished');
-  })
-  .catch(() => process.exit(1));
+  target: 'node18',
+  format: 'esm',
+  sourcemap: isDev,
+  minify: !isDev,
+  define: {
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+  },
+}).catch(() => process.exit(1));
