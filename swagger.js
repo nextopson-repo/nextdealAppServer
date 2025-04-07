@@ -1,12 +1,8 @@
 /* eslint-disable no-undef */
 /* eslint-disable @typescript-eslint/no-var-requires */
-import swaggerAutogen from 'swagger-autogen';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import swaggerAutogen from 'swagger-autogen';
 
 const swagger = swaggerAutogen();
 const outputFile = './src/swagger_output.json';
