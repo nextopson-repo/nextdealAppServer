@@ -4,11 +4,11 @@ import express, { Express } from 'express';
 import helmet from 'helmet';
 import { pino } from 'pino';
 import swaggerUi from 'swagger-ui-express';
+import { DataSource, DataSourceOptions } from 'typeorm';
 
 import errorHandler from '@/common/middleware/errorHandler';
 import rateLimiter from '@/common/middleware/rateLimiter';
 import requestLogger from '@/common/middleware/requestLogger';
-import { env } from '@/common/utils/envConfig';
 import { swaggerSpec } from './config/swagger';
 
 import authRouter from '../src/api/routes/auth/AuthRoutes';
@@ -16,21 +16,20 @@ import authRouter from '../src/api/routes/auth/AuthRoutes';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
-import { DataSource } from 'typeorm'; 
 // Create a DataSource instance
-const AppDataSource = new DataSource({
+const dataSourceOptions: DataSourceOptions = {
   type: 'mysql',
   host: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_HOST : process.env.LOCAL_DB_HOST,
   port: 3306,
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
-  password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD ,
+  password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [
-    
-  ],
-  synchronize: true,
-  // ... other TypeORM configuration options (entities, synchronize, etc.)
-});
+  entities: [],
+  synchronize: process.env.NODE_ENV !== 'production',
+  logging: process.env.NODE_ENV === 'development'
+};
+
+const AppDataSource = new DataSource(dataSourceOptions);
 
 // Serve the public folder for Swagger UI assets
 // app.use(express.static('dist/public'));
@@ -45,11 +44,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 // Initialize the DataSource
 AppDataSource.initialize()
   .then(() => {
-    console.log('DB connected');
-    // ... your application logic here
+    logger.info('Database connected successfully');
   })
   .catch((error) => {
-    console.error('Error during Data Source initialization:', error);
+    logger.error('Error during database initialization:', error);
   });
 
 // Set the application to trust the reverse proxy

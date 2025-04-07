@@ -3,6 +3,7 @@
   "version": "1.0.13",
   "description": "this is a nextdeal backend",
   "main": "index.ts",
+  "type": "module",
   "private": false,
   "scripts": {
     "dev": "tsx watch --clear-screen=false src/index.ts | pino-pretty",

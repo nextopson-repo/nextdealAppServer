@@ -14,7 +14,7 @@ const addErrorToRequestLog: ErrorRequestHandler = (err, _req, res, next) => {
   next(err);
 };
 
-const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
+const errorHandler: ErrorRequestHandler = (err, _req, res) => {
   const statusCode = err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
   const message = err.message || 'Something went wrong';
   

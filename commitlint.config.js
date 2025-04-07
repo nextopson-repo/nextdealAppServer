@@ -1,4 +1,5 @@
-module.exports = {
+/* eslint-disable no-undef */
+export default {
   extends: ['@commitlint/config-conventional'],
   rules: {
     'type-enum': [
