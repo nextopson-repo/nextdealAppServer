@@ -9,6 +9,92 @@ import { env } from '@/common/utils/envConfig';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
 import { AppDataSource } from '@/server';
 
+
+const loginSchema = z.object({
+  body: z.object({
+    email: z.string().email('Invalid email address'),
+    mobileNumber: z.string().min(10, 'Mobile number must be at least 10 digits'),
+  }),
+});
+
+const loginHandler = async (req: Request, res: Response): Promise<void> => {
+  try {
+    // Validate request
+    const validationResult = loginSchema.safeParse({ body: req.body });
+    if (!validationResult.success) {
+      const errorMessage = validationResult.error.errors.map((err) => err.message).join(', ');
+      handleServiceResponse(
+        new ServiceResponse(ResponseStatus.Failed, errorMessage, null, StatusCodes.BAD_REQUEST),
+        res
+      );
+      return;
+    }
+
+    const { email, mobileNumber } = req.body;
+
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const user = await userRepo.findOne({
+      where: { email, mobileNumber },
+    });
+
+    if (!user) {
+      handleServiceResponse(
+        new ServiceResponse(ResponseStatus.Failed, 'Invalid credentials', null, StatusCodes.UNAUTHORIZED),
+        res
+      );
+      return;
+    }
+
+    if (!user.isFullyVerified()) {
+      handleServiceResponse(
+        new ServiceResponse(ResponseStatus.Failed, 'User is not fully verified. Please complete OTP verification.', null, StatusCodes.FORBIDDEN),
+        res
+      );
+      return;
+    }
+
+    // Create JWT token
+    const token = jwt.sign(
+      {
+        id: user.id,
+        email: user.email,
+        userType: user.userType,
+      },
+      env.ACCESS_SECRET_KEY,
+      { expiresIn: '1d' }
+    );
+
+    // Return user info and token
+    handleServiceResponse(
+      new ServiceResponse(
+        ResponseStatus.Success,
+        'Login successful',
+        {
+          user: {
+            id: user.id,
+            fullName: user.fullName,
+            email: user.email,
+            userType: user.userType,
+          },
+          token,
+        },
+        StatusCodes.OK
+      ),
+      res
+    );
+  } catch (error) {
+    console.error('Login Error:', error);
+    handleServiceResponse(
+      new ServiceResponse(ResponseStatus.Failed, 'Something went wrong', null, StatusCodes.INTERNAL_SERVER_ERROR),
+      res
+    );
+  }
+};
+
+
+
+
+
 // Validation schema for signup request
 const signupSchema = z.object({
   body: z.object({
@@ -51,6 +137,7 @@ const withErrorHandling = (handler: (req: Request, res: Response) => Promise<voi
     }
   };
 };
+
 
 // Signup handler
 const signupHandler = async (req: Request, res: Response): Promise<void> => {
@@ -257,3 +344,4 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
 // Export handlers with error handling
 export const signup = withErrorHandling(signupHandler);
 export const VerifyOTP = withErrorHandling(verifyOTPHandler);
+export const login = withErrorHandling(loginHandler);
