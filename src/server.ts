@@ -9,11 +9,12 @@ import { DataSource, DataSourceOptions } from 'typeorm';
 import errorHandler from '@/common/middleware/errorHandler';
 import rateLimiter from '@/common/middleware/rateLimiter';
 import requestLogger from '@/common/middleware/requestLogger';
-import { swaggerSpec } from './config/swagger';
 
+import { UserAuth } from './api/entity';
+import authRoutes from './api/routes/auth/AuthRoutes';
 // Import only the hello route
 import helloRouter from './api/routes/hello/HelloRoutes';
-
+import { swaggerSpec } from './config/swagger';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -25,9 +26,10 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [],
-  synchronize: process.env.NODE_ENV !== 'production',
-  logging: process.env.NODE_ENV === 'development',
+  entities: [UserAuth],
+  synchronize: false, // Enable this for development
+  logging: true, // Enable this for development
+  entitySkipConstructor: true,
 };
 
 const AppDataSource = new DataSource(dataSourceOptions);
@@ -46,40 +48,41 @@ app.use(
   })
 );
 
-// Initialize the DataSource
+// Initialize the DataSource before setting up routes
 AppDataSource.initialize()
   .then(() => {
     logger.info('Database connected successfully');
+
+    // Set the application to trust the reverse proxy
+    app.set('trust proxy', true);
+
+    // Middlewares
+    app.use(express.json());
+    app.use(cookieParser());
+    app.use(
+      cors({
+        origin: function (origin, callback) {
+          callback(null, true); // Allow all origins
+        },
+        credentials: true,
+      })
+    );
+    app.use(helmet());
+    app.use(rateLimiter);
+
+    // Request logging
+    app.use(requestLogger);
+
+    // Routes mounting
+    app.use('/api/v1/hello', helloRouter);
+    app.use('/api/v1/auth', authRoutes);
+
+    // Error handlers
+    app.use(errorHandler());
   })
   .catch((error) => {
     logger.error('Error during database initialization:', error);
+    process.exit(1);
   });
 
-// Set the application to trust the reverse proxy
-app.set('trust proxy', true);
-
-// Middlewares
-app.use(express.json());
-app.use(cookieParser());
-// app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }));
-app.use(
-  cors({
-    origin: function (origin, callback) {
-      callback(null, true); // Allow all origins
-    },
-    credentials: true,
-  })
-);
-app.use(helmet());
-app.use(rateLimiter);
-
-// Request logging
-app.use(requestLogger);
-
-// Routes mounting - only the hello route
-app.use('/api/v1/hello', helloRouter);
-
-// Error handlers
-app.use(errorHandler());
-
-export { app, logger, AppDataSource };
+export { app, AppDataSource, logger };
