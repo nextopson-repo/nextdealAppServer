@@ -8,6 +8,7 @@ import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse
 import { env } from '@/common/utils/envConfig';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
 import { AppDataSource } from '@/server';
+import errorHandler from '@/common/middleware/errorHandler';
 
 // Validation schema for signup request
 const signupSchema = z.object({
@@ -251,6 +252,26 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
   } finally {
     // Release query runner
     await queryRunner.release();
+  }
+};
+
+export const loginController = async (req: Request, res: Response) => {
+  const { mobileNumber } = req.body;
+  try {
+    const AuthRepo = AppDataSource.getRepository(UserAuth);
+    const user = await AuthRepo.findOne({ where: { mobileNumber } });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json({
+      message: "User found successfully",
+      otp: user.mobileOTP || null
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
 

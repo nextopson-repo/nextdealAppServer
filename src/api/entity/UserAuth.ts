@@ -22,7 +22,7 @@ export class UserAuth extends BaseEntity {
   @Column({ type: 'enum', enum: ['Agent', 'Owner', 'EndUser', 'Investor'] })
   userType!: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
 
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255, unique: true, })
   email!: string;
 
   @Column({ type: 'boolean', default: false })
