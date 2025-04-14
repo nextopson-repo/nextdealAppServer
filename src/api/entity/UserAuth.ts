@@ -7,9 +7,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Property } from './Property';
 
 @Entity('UserAuth')
 export class UserAuth extends BaseEntity {
@@ -30,6 +32,9 @@ export class UserAuth extends BaseEntity {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   fullName!: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  userProfile!: string;
 
   @Column({ type: 'varchar', length: 4, nullable: true })
   emailOTP!: string | null;
@@ -113,4 +118,11 @@ export class UserAuth extends BaseEntity {
   static async validatePassword(password: string, hashedPassword: string): Promise<boolean> {
     return await bcrypt.compare(password, hashedPassword);
   }
+
+
+  @OneToMany(() => Property, (property) => property.user, {
+    cascade: true,
+    onDelete: 'CASCADE',
+  })
+  properties!: Property[];
 }
