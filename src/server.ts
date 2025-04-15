@@ -18,6 +18,9 @@ import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
 import { PropertyImage } from './api/entity/PropertyImages';
+import { Credibility } from './api/entity/ Credibility';
+import { RepublishProperties } from './api/entity/RepublishProperties';
+import { SavedProperties } from './api/entity/SavedProperties';
 import { Address } from './api/entity/Address';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
@@ -30,7 +33,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, PropertyImage, Address],
+  entities: [UserAuth, Property, PropertyImage, Address,Credibility,SavedProperties,RepublishProperties],
   synchronize: false, 
   logging: true, 
   entitySkipConstructor: true,
