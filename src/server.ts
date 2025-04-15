@@ -43,7 +43,6 @@ const AppDataSource = new DataSource(dataSourceOptions);
 
 // Serve the public folder for Swagger UI assets
 // app.use(express.static('dist/public'));
-
 // Swagger UI setup
 app.use(
   '/api-docs',
