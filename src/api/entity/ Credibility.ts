@@ -3,21 +3,22 @@ import {
     BeforeInsert,
     BeforeUpdate,
     Column,
+    CreateDateColumn,
     Entity,
     JoinColumn,
     OneToOne,
-    PrimaryColumn,
+    PrimaryGeneratedColumn,
+    UpdateDateColumn,
   } from 'typeorm';
-  import { UserAuth } from './UserAuth';
+import { randomBytes } from 'crypto';
   
-  @Entity('user_credibility')
-  export class Credibility extends BaseEntity {
-    @PrimaryColumn('uuid')
+  @Entity('UserCredibility')
+  export class UserCredibility extends BaseEntity {
+    @PrimaryGeneratedColumn('uuid')
+    id!: string;
+  
+    @Column('uuid')
     userId!: string;
-  
-    @OneToOne(() => UserAuth)
-    @JoinColumn({ name: 'user_id' })
-    user!: UserAuth;
   
     @Column({ type: 'int', default: 100 })
     credibilityScore!: number;
@@ -28,14 +29,10 @@ import {
     @Column({ type: 'varchar', default: 'system' })
     updatedBy!: string;
   
-    @Column({
-      type: 'timestamp',
-      default: () => 'CURRENT_TIMESTAMP(6)',
-      precision: 6,
-    })
+    @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
     createdAt!: Date;
   
-    @Column({
+    @UpdateDateColumn({
       type: 'timestamp',
       default: () => 'CURRENT_TIMESTAMP(6)',
       onUpdate: 'CURRENT_TIMESTAMP(6)',
@@ -43,5 +40,14 @@ import {
     })
     updatedAt!: Date;
   
-    
+
+    @BeforeInsert()
+       async generateUUID() {
+         this.id = randomBytes(16).toString('hex');
+       }
+       
+       @BeforeUpdate()
+       async updateTimestamp() {
+         // Optional: Custom update logic
+       }
   }

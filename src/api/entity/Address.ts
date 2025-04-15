@@ -16,13 +16,13 @@ import { randomBytes } from 'crypto';
     @PrimaryGeneratedColumn('uuid')
     id!: string;
   
-    @Column({ type: 'varchar' })
+    @Column({ type: 'varchar', nullable:true })
     state!: string;
   
-    @Column({ type: 'varchar' })
+    @Column({ type: 'varchar', nullable:true })
     city!: string;
   
-    @Column({ type: 'varchar' })
+    @Column({ type: 'varchar', nullable:true }) 
     locality!: string;
   
     @OneToOne(() => Property, (property) => property.address)

@@ -4,14 +4,14 @@ import {
   BeforeInsert,
   BeforeUpdate,
   Column,
+  CreateDateColumn,
   Entity,
   JoinColumn,
-  ManyToOne,
   OneToOne,
   OneToMany,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from "typeorm";
-import { UserAuth } from "./UserAuth";
 import { Address } from "./Address";
 import { PropertyImage } from "./PropertyImages";
 
@@ -20,9 +20,8 @@ export class Property extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @ManyToOne(() => UserAuth, (user) => user.properties)
-  @JoinColumn({ name: 'userId' })
-  user!: UserAuth;
+  @Column('uuid')
+  userId!: string;
 
   @OneToOne(() => Address, (address) => address.addressFor)
   @JoinColumn({ name: 'addressId' })
@@ -106,14 +105,10 @@ export class Property extends BaseEntity {
   @Column({ type: 'varchar', default: 'system' })
   updatedBy!: string;
 
-  @Column({
-    type: 'timestamp',
-    default: () => 'CURRENT_TIMESTAMP(6)',
-    precision: 6,
-  })
+  @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
   createdAt!: Date;
 
-  @Column({
+  @UpdateDateColumn({
     type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP(6)',
     onUpdate: 'CURRENT_TIMESTAMP(6)',

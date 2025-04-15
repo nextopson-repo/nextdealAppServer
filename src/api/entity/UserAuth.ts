@@ -8,10 +8,10 @@ import {
   CreateDateColumn,
   Entity,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Property } from './Property';
 
 @Entity('UserAuth')
 export class UserAuth extends BaseEntity {
@@ -119,10 +119,5 @@ export class UserAuth extends BaseEntity {
     return await bcrypt.compare(password, hashedPassword);
   }
 
-
-  @OneToMany(() => Property, (property) => property.user, {
-    cascade: true,
-    onDelete: 'CASCADE',
-  })
-  properties!: Property[];
+ 
 }

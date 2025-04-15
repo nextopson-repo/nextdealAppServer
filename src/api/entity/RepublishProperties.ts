@@ -1,48 +1,55 @@
 import {
     BaseEntity,
+    BeforeInsert,
+    BeforeUpdate,
     Column,
+    CreateDateColumn,
     Entity,
-    JoinColumn,
-    ManyToOne,
-    PrimaryColumn,
+    PrimaryGeneratedColumn,
+    UpdateDateColumn,
   } from 'typeorm';
-  import { UserAuth } from './UserAuth';
-  import { Property } from './Property';
+import { randomBytes } from 'crypto';
   
-  @Entity('republish_properties_table')
-  export class RepublishProperties extends BaseEntity {
-    @PrimaryColumn('uuid')
-    userId!: string;
+  @Entity('RepublishProperty')
+  export class RepublishProperty extends BaseEntity {
+    @PrimaryGeneratedColumn('uuid')
+    id!: string;
   
-    @PrimaryColumn('uuid')
+    @Column('uuid')
     propertyId!: string;
   
-    @ManyToOne(() => UserAuth, (user) => user.id, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'user_id' })
-    user!: UserAuth;
+    @Column('uuid')
+    ownerId!: string;
   
-    @ManyToOne(() => Property, (property) => property.id, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'property_id' })
-    property!: Property;
-  
+    @Column('uuid')
+    republisherId!: string;
+    
     @Column({ type: 'varchar', default: 'system' })
     createdBy!: string;
-  
+    
     @Column({ type: 'varchar', default: 'system' })
     updatedBy!: string;
-  
-    @Column({
-      type: 'timestamp',
-      default: () => 'CURRENT_TIMESTAMP(6)',
-      precision: 6,
-    })
+    
+    @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
     createdAt!: Date;
-  
-    @Column({
+    
+    @UpdateDateColumn({
       type: 'timestamp',
       default: () => 'CURRENT_TIMESTAMP(6)',
       onUpdate: 'CURRENT_TIMESTAMP(6)',
       precision: 6,
     })
     updatedAt!: Date;
+
+
+      @BeforeInsert()
+        async generateUUID() {
+          this.id = randomBytes(16).toString('hex');
+        }
+        
+        @BeforeUpdate()
+        async updateTimestamp() {
+          // Optional: Custom update logic
+        } 
+
   }
