@@ -17,8 +17,11 @@ import s3bucket from './api/routes/aws/s3';
 import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
-import { PropertyImage } from './api/entity/PropertyImages';
+import { PropertyImage } from './api/entity/PropertyImages'
 import { Address } from './api/entity/Address';
+import { UserCredibility } from './api/entity/ Credibility';
+import { SavedProperty } from './api/entity/SavedProperties';
+import { RepublishProperty } from './api/entity/RepublishProperties';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -30,7 +33,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, PropertyImage, Address],
+  entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty],
   synchronize: false, 
   logging: true, 
   entitySkipConstructor: true,
@@ -40,7 +43,6 @@ const AppDataSource = new DataSource(dataSourceOptions);
 
 // Serve the public folder for Swagger UI assets
 // app.use(express.static('dist/public'));
-
 // Swagger UI setup
 app.use(
   '/api-docs',

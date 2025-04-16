@@ -1,12 +1,23 @@
 // PropertyImages.ts
-import { BaseEntity, BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, PrimaryColumn, JoinColumn, OneToMany } from 'typeorm';
+import {
+  BaseEntity,
+  BeforeInsert,
+  BeforeUpdate,
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 import { Property } from './Property';
 import { randomBytes } from 'crypto';
 
-@Entity('Property_image_table')
+@Entity('PropertyImage')
 export class PropertyImage extends BaseEntity {
-    @PrimaryColumn("uuid")
+    @PrimaryGeneratedColumn('uuid')
     id!: string;
 
     @ManyToOne(() => Property, (property) => property.images)
@@ -16,20 +27,19 @@ export class PropertyImage extends BaseEntity {
     @Column({ type: 'varchar' })
     imageKey!: string;
 
+    @Column({ type: 'varchar', nullable: true })
+    imageName!: string;
+
     @Column({ type: 'varchar', default: 'system' })
     createdBy!: string;
 
     @Column({ type: 'varchar', default: 'system' })
     updatedBy!: string;
 
-    @Column({
-        type: 'timestamp',
-        default: () => 'CURRENT_TIMESTAMP(6)',
-        precision: 6,
-    })
+    @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
     createdAt!: Date;
 
-    @Column({
+    @UpdateDateColumn({
         type: 'timestamp',
         default: () => 'CURRENT_TIMESTAMP(6)',
         onUpdate: 'CURRENT_TIMESTAMP(6)',
