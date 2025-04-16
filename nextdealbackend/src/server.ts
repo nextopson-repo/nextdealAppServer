@@ -10,15 +10,11 @@ import errorHandler from '@/common/middleware/errorHandler';
 import rateLimiter from '@/common/middleware/rateLimiter';
 import requestLogger from '@/common/middleware/requestLogger';
 
-import { UserAuth } from './api/entity';
+import { Property, PropertyImage, UserAuth } from './api/entity';
 import authRoutes from './api/routes/auth/AuthRoutes';
-import s3bucket from './api/routes/aws/s3';
-
+// Import only the hello route
 import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
-import { Property } from './api/entity/Property';
-import { PropertyImage } from './api/entity/PropertyImages';
-import { Address } from './api/entity/Address';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -30,9 +26,9 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, PropertyImage, Address],
-  synchronize: false, 
-  logging: true, 
+  entities: [UserAuth, Property, PropertyImage],
+  synchronize: true, // Enable this for development
+  logging: true, // Enable this for development
   entitySkipConstructor: true,
 };
 
@@ -80,7 +76,6 @@ AppDataSource.initialize()
     // Routes mounting
     app.use('/api/v1/hello', helloRouter);
     app.use('/api/v1/auth', authRoutes);
-    app.use('/api/v1/s3', s3bucket);
 
     // Error handlers
     app.use(errorHandler());

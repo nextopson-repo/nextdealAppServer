@@ -40,7 +40,7 @@ const errorMiddleware = (err: any, req: Request, res: Response, next: NextFuncti
   }
 
   // Send error response
-  res.status(err.statusCode || 500).json({
+  res.status(err.statusCode).json({
     success: false,
     message: err.message,
   });
@@ -48,7 +48,7 @@ const errorMiddleware = (err: any, req: Request, res: Response, next: NextFuncti
 
 export { ErrorHandler, errorMiddleware };
 
-export const errorHandler = (err: Error & { statusCode?: number; code?: string; id?: string }, req: Request, res: Response) => {
+export const errorHandler = (err: Error, req: Request, res: Response) => {
   // Default values for statusCode and message
   err.statusCode = err.statusCode || 500;
   err.message = err.message || 'Internal server error';
@@ -78,7 +78,7 @@ export const errorHandler = (err: Error & { statusCode?: number; code?: string; 
   }
 
   // Send error response
-  res.status(err.statusCode || 500).json({
+  res.status(err.statusCode).json({
     success: false,
     message: err.message,
   });
