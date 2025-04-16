@@ -22,6 +22,7 @@ import { Address } from './api/entity/Address';
 import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
 import { RepublishProperty } from './api/entity/RepublishProperties';
+import property from './api/routes/PropertyRoutes/PropertyRoute'; // Ensure this path is correct
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -83,6 +84,8 @@ AppDataSource.initialize()
     app.use('/api/v1/hello', helloRouter);
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
+    app.use('/api/v1/propertyCon', property);
+
 
     // Error handlers
     app.use(errorHandler());
