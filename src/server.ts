@@ -1,6 +1,6 @@
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
-import express, { Express } from 'express';
+import express, { Express, Request, Response } from 'express';
 import helmet from 'helmet';
 import { pino } from 'pino';
 import swaggerUi from 'swagger-ui-express';
@@ -82,7 +82,7 @@ AppDataSource.initialize()
     app.use(requestLogger);
 
     // Routes mounting
-    app.use('/api/v1/hello', helloRouter);
+    app.use('/', (_: Request, res: Response) => {res.status(200).send('<h1>Hello from NextDeal</h1>')});    
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);

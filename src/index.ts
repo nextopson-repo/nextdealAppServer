@@ -2,7 +2,7 @@
 import { env } from '@/common/utils/envConfig';
 import { app, logger } from '@/server';
 
-const server = app.listen(env.PORT, () => {
+const server = app.listen(env.PORT || 5000 , () => {
   const { NODE_ENV, HOST, PORT } = env;
   logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
   logger.info(`Swagger docs available at http://${HOST}:${PORT}/api-docs`);
