@@ -1,4 +1,3 @@
-// PropertyImages.ts
 import {
   BaseEntity,
   BeforeInsert,
@@ -20,7 +19,7 @@ export class PropertyImage extends BaseEntity {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
 
-    @ManyToOne(() => Property, (property) => property.images)
+    @ManyToOne(() => Property)
     @JoinColumn({ name: 'propertyId' })
     property!: Property;
 

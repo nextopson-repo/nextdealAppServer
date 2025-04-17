@@ -1,9 +1,9 @@
+import { createOrUpdateProperty } from '@/api/controllers/property/PropertyController';
+import { getAllProperties } from '@/api/controllers/propertyCon/PropertyController';
 import { Router } from 'express';
-import { createProperty, getAllProperties } from '../../controllers/propertyCon/PropertyController';
-
 const router = Router();
 
-router.post('/propertyDetails', createProperty);
-router.get('/', getAllProperties);
+router.post('/create-update', createOrUpdateProperty);
+router.get('/getAll', getAllProperties);
 
 export default router;

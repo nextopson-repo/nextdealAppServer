@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { cleanEnv, host, num, port, str, testOnly } from 'envalid';
+import { cleanEnv, host, num, port, str, testOnly, bool } from 'envalid';
 
 dotenv.config();
 
@@ -30,4 +30,12 @@ export const env = cleanEnv(process.env, {
   // Razorpay
   RAZORPAY_TEST_KEY_ID: str({ default: '' }),
   RAZORPAY_TEST_KEY_SECRET: str({ default: '' }),
+
+  // SMTP Configuration
+  SMTP_HOST: str(),
+  SMTP_PORT: num(),
+  SMTP_SECURE: bool(),
+  SMTP_USER: str(),
+  SMTP_PASS: str(),
+  SMTP_FROM: str(),
 });

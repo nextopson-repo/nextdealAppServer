@@ -37,7 +37,7 @@ const dataSourceOptions: DataSourceOptions = {
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
   entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty],
   synchronize: false, 
-  logging: true, 
+  logging: false, 
   entitySkipConstructor: true,
 };
 

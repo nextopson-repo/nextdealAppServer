@@ -42,6 +42,12 @@ export class UserAuth extends BaseEntity {
   @Column({ type: 'varchar', length: 4, nullable: true })
   mobileOTP!: string | null;
 
+  @Column({ type: 'timestamp', nullable: true })
+  emailOTPSentAt!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  mobileOTPSentAt!: Date | null;
+
   @Column({ type: 'boolean', default: false })
   isEmailVerified!: boolean;
 
@@ -65,6 +71,24 @@ export class UserAuth extends BaseEntity {
   })
   updatedAt!: Date;
 
+  @Column({ type: 'boolean', default: false })
+  isLocked!: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lockedUntil!: Date | null;
+
+  @Column({ type: 'int', default: 0 })
+  failedLoginAttempts!: number;
+
+  @Column({ type: 'int', default: 0 })
+  failedOTPAttempts!: number;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAttempt!: Date | null;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastOTPAttempt!: Date | null;
+
   @BeforeInsert()
   async generateUUID() {
     this.id = randomBytes(16).toString('hex');
@@ -76,16 +100,18 @@ export class UserAuth extends BaseEntity {
   }
 
   private generateOTP(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
+    return Math.floor(1000 + Math.random() * 9000).toString();
   }
 
   generateEmailOTP(): void {
     this.emailOTP = this.generateOTP();
+    this.emailOTPSentAt = new Date();
     this.isEmailVerified = false;
   }
 
   generateMobileOTP(): void {
     this.mobileOTP = this.generateOTP();
+    this.mobileOTPSentAt = new Date();
     this.isMobileVerified = false;
   }
 
@@ -119,5 +145,40 @@ export class UserAuth extends BaseEntity {
     return await bcrypt.compare(password, hashedPassword);
   }
 
- 
+  lockAccount(minutes: number = 15): void {
+    this.isLocked = true;
+    this.lockedUntil = new Date(Date.now() + minutes * 60 * 1000);
+  }
+
+  unlockAccount(): void {
+    this.isLocked = false;
+    this.lockedUntil = null;
+    this.failedLoginAttempts = 0;
+    this.failedOTPAttempts = 0;
+  }
+
+  incrementFailedLoginAttempts(): void {
+    this.failedLoginAttempts += 1;
+    this.lastLoginAttempt = new Date();
+    
+    if (this.failedLoginAttempts >= 5) {
+      this.lockAccount();
+    }
+  }
+
+  incrementFailedOTPAttempts(): void {
+    this.failedOTPAttempts += 1;
+    this.lastOTPAttempt = new Date();
+    
+    if (this.failedOTPAttempts >= 3) {
+      this.lockAccount(5); // Lock for 5 minutes after 3 failed OTP attempts
+    }
+  }
+
+  resetFailedAttempts(): void {
+    this.failedLoginAttempts = 0;
+    this.failedOTPAttempts = 0;
+    this.lastLoginAttempt = null;
+    this.lastOTPAttempt = null;
+  }
 }

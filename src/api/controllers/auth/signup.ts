@@ -8,36 +8,18 @@ import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse
 import { env } from '@/common/utils/envConfig';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
 import { AppDataSource } from '@/server';
-import errorHandler from '@/common/middleware/errorHandler';
-
 
 const loginSchema = z.object({
-  body: z.object({
-    email: z.string().email('Invalid email address'),
-    mobileNumber: z.string().min(10, 'Mobile number must be at least 10 digits'),
-  }),
+  mobileNumber: z.string().min(10, 'Mobile number must be at least 10 digits'),
 });
-
 const loginHandler = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Validate request
-    const validationResult = loginSchema.safeParse({ body: req.body });
-    if (!validationResult.success) {
-      const errorMessage = validationResult.error.errors.map((err) => err.message).join(', ');
-      handleServiceResponse(
-        new ServiceResponse(ResponseStatus.Failed, errorMessage, null, StatusCodes.BAD_REQUEST),
-        res
-      );
-      return;
-    }
-
-    const { email, mobileNumber } = req.body;
-
+    // Validate the request body
+    const validatedData = loginSchema.parse(req.body);
+    const { mobileNumber } = validatedData;
+    
     const userRepo = AppDataSource.getRepository(UserAuth);
-    const user = await userRepo.findOne({
-      where: { email, mobileNumber },
-    });
-
+    const user = await userRepo.findOne({ where: { mobileNumber } });
     if (!user) {
       handleServiceResponse(
         new ServiceResponse(ResponseStatus.Failed, 'Invalid credentials', null, StatusCodes.UNAUTHORIZED),
@@ -45,44 +27,27 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
       );
       return;
     }
-
     if (!user.isFullyVerified()) {
       handleServiceResponse(
-        new ServiceResponse(ResponseStatus.Failed, 'User is not fully verified. Please complete OTP verification.', null, StatusCodes.FORBIDDEN),
+        new ServiceResponse(
+          ResponseStatus.Failed,
+          'User is not fully verified. Please complete OTP verification.',
+          null,
+          StatusCodes.FORBIDDEN
+        ),
         res
       );
       return;
     }
+    // Generate OTP
+    user.generateMobileOTP();
+    const otp = user.mobileOTP
+    res.status(StatusCodes.OK).json({
+      status: ResponseStatus.Success,
+      message: 'OTP generated successfully',
+      data: { otp },
+    });
 
-    // Create JWT token
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        userType: user.userType,
-      },
-      env.ACCESS_SECRET_KEY,
-      { expiresIn: '1d' }
-    );
-
-    // Return user info and token
-    handleServiceResponse(
-      new ServiceResponse(
-        ResponseStatus.Success,
-        'Login successful',
-        {
-          user: {
-            id: user.id,
-            fullName: user.fullName,
-            email: user.email,
-            userType: user.userType,
-          },
-          token,
-        },
-        StatusCodes.OK
-      ),
-      res
-    );
   } catch (error) {
     console.error('Login Error:', error);
     handleServiceResponse(
@@ -91,10 +56,6 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
     );
   }
 };
-
-
-
-
 
 // Validation schema for signup request
 const signupSchema = z.object({
@@ -111,11 +72,11 @@ const signupSchema = z.object({
 // Validation schema for OTP verification
 const verifyOTPSchema = z.object({
   body: z.object({
-    userId: z.string().uuid('Invalid user ID'),
+    // userId: z.string().uuid('Invalid user ID'),
     otpType: z.enum(['email', 'mobile'], {
       errorMap: () => ({ message: 'Invalid OTP type' }),
     }),
-    otp: z.string().length(6, 'OTP must be 6 digits'),
+    otp: z.string().length(4, 'OTP must be 4 digits'),
   }),
 });
 
@@ -342,25 +303,6 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export const loginController = async (req: Request, res: Response) => {
-  const { mobileNumber } = req.body;
-  try {
-    const AuthRepo = AppDataSource.getRepository(UserAuth);
-    const user = await AuthRepo.findOne({ where: { mobileNumber } });
-
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
-
-    return res.status(200).json({
-      message: "User found successfully",
-      otp: user.mobileOTP || null
-    });
-  } catch (error) {
-    console.error("Login Error:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
 
 // Export handlers with error handling
 export const signup = withErrorHandling(signupHandler);

@@ -28,7 +28,7 @@ export class Property extends BaseEntity {
   address!: Address;
 
   @OneToMany(() => PropertyImage, (image) => image.property)
-  images!: PropertyImage[];
+  propertyImageKeys!: PropertyImage[];
 
   @Column({ type: 'varchar' })
   propertyCategory!: string;
@@ -41,9 +41,6 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true })
   propertyName!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  propertyImage!: string;
 
   @Column({ type: 'int', nullable: true })
   totalBathrooms!: number;
@@ -98,6 +95,10 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'float', nullable: true })
   landArea!: number;
+
+
+  @Column({ type: 'varchar', nullable: true })
+  unit!: string;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
