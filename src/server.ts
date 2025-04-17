@@ -13,7 +13,7 @@ import requestLogger from '@/common/middleware/requestLogger';
 import { UserAuth } from './api/entity';
 import authRoutes from './api/routes/auth/AuthRoutes';
 import s3bucket from './api/routes/aws/s3';
-import UpdateprofileRoute from './api/routes/UpdateProfileRoute/updateProfileRoute';
+import profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
 
 import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
@@ -85,8 +85,8 @@ AppDataSource.initialize()
     app.use('/api/v1/hello', helloRouter);
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
-    app.use('/api/v1/propertyCon', property);
-    app.use("/api/v1/updateProfileRoute",UpdateprofileRoute)
+    app.use('/api/v1/property', property);
+    app.use("/api/v1/profile",profile)
 
 
     // Error handlers

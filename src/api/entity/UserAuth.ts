@@ -34,7 +34,7 @@ export class UserAuth extends BaseEntity {
   fullName!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  userProfile!: string;
+  userProfileKey!: string;
 
   @Column({ type: 'varchar', length: 4, nullable: true })
   emailOTP!: string | null;

@@ -46,7 +46,7 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
     if (propertyId) {
       const existingProperty = await propertyRepo.findOne({
         where: { id: propertyId },
-        relations: ['address', 'propertyImageKeys'],
+        relations: ['address', 'propertyImageKeys'], 
       });
 
       if (!existingProperty) {

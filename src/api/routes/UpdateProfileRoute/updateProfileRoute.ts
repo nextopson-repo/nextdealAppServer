@@ -1,9 +1,9 @@
 import express from "express";
-// import { updateUserProfile } from "../../controllers/UpdateController/updateController";
+import { updateUserProfile } from "../../controllers/profile/updateProfile";
 
 const router = express.Router();
 
 // PUT /api/users/:id
-// router.put("/users/:id", updateUserProfile);
+router.post("/profile-update", updateUserProfile);
 
 export default router;
