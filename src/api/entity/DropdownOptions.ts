@@ -180,74 +180,77 @@ import {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
   
-    @Column({ type: 'enum', enum: ResidentialOptions })
-    res!: ResidentialOptions;
+    @Column({ type: 'varchar' })
+    residential!: string;
   
-    @Column({ type: 'enum', enum: CommercialOptions })
-    commercial!: CommercialOptions;
+    @Column({ type: 'varchar' })
+    commercial!: string;
   
-    @Column({ type: 'enum', enum: PropertyTypeOptions })
-    propertyType!: PropertyTypeOptions;
+    @Column({ type: 'varchar' })
+    propertyType!: string;
   
-    @Column({ type: 'enum', enum: StateOptions })
-    state!: StateOptions;
+    @Column({ type: 'varchar' })
+    state!: string;
   
-    @Column({ type: 'enum', enum: CityOptions })
-    city!: CityOptions;
+    @Column({ type: 'varchar' })
+    city!: string;
+
+    @Column({ type: 'varchar' })
+    locality!: string;
+
+    @Column({ type: 'varchar'})
+    furnishing!: string;
   
-    @Column({ type: 'enum', enum: FurnishingOptions })
-    furnishing!: FurnishingOptions;
+    @Column({ type: 'varchar' })
+    propertyFacing!: string;
   
-    @Column({ type: 'enum', enum: PropertyFacingOptions })
-    propertyFacing!: PropertyFacingOptions;
+    @Column({ type: 'varchar'})
+    viewsOfProperty!: string;
   
-    @Column({ type: 'enum', enum: ViewsOfPropertyOptions, array: true })
-    viewsOfProperty!: ViewsOfPropertyOptions[];
+    @Column({ type: 'varchar' })
+    amenities!: string;
   
-    @Column({ type: 'enum', enum: AmenitiesOptions, array: true })
-    amenities!: AmenitiesOptions[];
+    @Column({ type: 'varchar' })
+    BHKs!: string;
   
-    @Column({ type: 'enum', enum: BHKsOptions })
-    BHKs!: BHKsOptions;
+    @Column({ type: 'varchar' })
+    constructionStatus!: string;
   
-    @Column({ type: 'enum', enum: ConstructionStatusOptions })
-    constructionStatus!: ConstructionStatusOptions;
+    @Column({ type: 'varchar' })
+    ageOfProperty!: string;
   
-    @Column({ type: 'enum', enum: AgeOfPropertyOptions })
-    ageOfProperty!: AgeOfPropertyOptions;
+    @Column({ type: 'varchar'})
+    reraApproved!: string;
   
-    @Column({ type: 'enum', enum: YesNoOptions })
-    reraApproved!: YesNoOptions;
+    @Column({ type: 'varchar' })
+    fencing!: string;
   
-    @Column({ type: 'enum', enum: YesNoOptions })
-    fencing!: YesNoOptions;
+    @Column({ type: 'varchar'})
+    soilType!: string;
   
-    @Column({ type: 'enum', enum: SoilTypeOptions })
-    soilType!: SoilTypeOptions;
+    @Column({ type: 'varchar' })
+    approachRoad!: string;
   
-    @Column({ type: 'enum', enum: ApproachRoadOptions })
-    approachRoad!: ApproachRoadOptions;
+    @Column({ type: 'varchar' })
+    washrooms!:string;
   
-    @Column({ type: 'enum', enum: WashroomsOptions })
-    washrooms!: WashroomsOptions;
+    @Column({ type: 'varchar' })
+    parking!: string;
   
-    @Column({ type: 'enum', enum: ParkingOptions })
-    parking!: ParkingOptions;
+    @Column({ type: 'varchar' })
+    lookingFor!: string;
   
-    @Column({ type: 'enum', enum: LookingForOptions, array: true })
-    lookingFor!: LookingForOptions[];
+    @Column({ type: 'varchar' })
+    needFor!: string;
   
-    @Column({ type: 'enum', enum: NeedForOptions, array: true })
-    needFor!: NeedForOptions[];
+    @Column({ type: 'varchar'})
+    furnishingType!: string;
   
-    @Column({ type: 'enum', enum: FurnishingTypeOptions, array: true })
-    furnishingType!: FurnishingTypeOptions[];
+    @Column({ type: 'varchar' })
+    BHKType!: string;
   
-    @Column({ type: 'enum', enum: BHKTypeOptions, array: true })
-    BHKType!: BHKTypeOptions[];
-  
-    @Column({ type: 'enum', enum: ImagesOptions })
-    images!: ImagesOptions;
+    @Column({ type: 'varchar' })
+    images!: string;
   
     @Column({ type: 'varchar', default: 'system' })
     createdBy!: string;
