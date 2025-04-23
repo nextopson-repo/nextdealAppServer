@@ -38,4 +38,10 @@ export const env = cleanEnv(process.env, {
   SMTP_USER: str(),
   SMTP_PASS: str(),
   SMTP_FROM: str(),
+
+  // MSG91 Configuration
+  MSG91_AUTH_KEY: str(),
+  MSG91_SENDER_ID: str(),
+  MSG91_ROUTE: str({ default: '4' }),
+  MSG91_FLOW_ID: str(),
 });
