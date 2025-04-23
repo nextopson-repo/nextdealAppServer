@@ -31,7 +31,10 @@ export class Property extends BaseEntity {
   propertyImageKeys!: PropertyImage[];
 
   @Column({ type: 'varchar' })
-  propertyCategory!: string;
+  category!: string;
+
+   @Column({ type: 'varchar' })
+  subCategory!: string;
 
   @Column({ type: 'varchar' })
   propertyType!: string;

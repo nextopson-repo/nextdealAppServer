@@ -106,3 +106,9 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 }; 
+
+// Search property 
+
+export const searchProperty = async (req: Request, res: Response, next: NextFunction) => {
+  // Implementation for searching properties based on query parameters
+  
