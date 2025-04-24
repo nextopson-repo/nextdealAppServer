@@ -1,3 +1,4 @@
+import { Address } from './../../entity/Address';
 import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
@@ -109,15 +110,19 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
 
 // Search property 
 
-export const searchProperty = async (req: Request, res: Response, next: NextFunction) => {
+export const searchProperty = async (req: Request, res: Response) => {
   // Implementation for searching properties based on query parameters
 
 try {
   const {category,subCategory, state,city } = req.body
   const propertyRepo = AppDataSource.getRepository(Property)
-   const property = await propertyRepo.findOne({
-      where: { category,subCategory },
-      relations: ['address', 'propertyImageKeys'],
+   const property = await propertyRepo.find({
+      where: { category,subCategory},
+      address:{...(state && {state}),
+      ...(city && {city})
+    },
+
+      relations: ['address', 'propertyImageKeys']
     });
     if (!property) {
       throw new ErrorHandler('Property not found', 404);
@@ -127,6 +132,6 @@ try {
       property,
     });
 } catch (error) {
-  next(error);
+  throw new ErrorHandler('server error', 500);
   }
 };
