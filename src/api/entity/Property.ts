@@ -36,9 +36,6 @@ export class Property extends BaseEntity {
    @Column({ type: 'varchar' })
   subCategory!: string;
 
-  @Column({ type: 'varchar' })
-  propertyType!: string;
-
   @Column({ type: 'varchar', nullable: true })
   projectName!: string;
 

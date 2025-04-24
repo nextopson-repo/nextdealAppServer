@@ -14,8 +14,9 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
         addressCity,
         addressLocality,
         imageKeys,
-        propertyCategory,
-        propertyType,
+        category,
+        subCategory,
+        
         projectName,
         propertyName,
         totalBathrooms,
@@ -37,6 +38,7 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
         viewFromProperty,
         landArea,
         unit,
+        
       } = req.body;
   
       const propertyRepo = AppDataSource.getRepository(Property);
@@ -81,8 +83,9 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
   
         // Update property
         Object.assign(existingProperty, {
-          propertyCategory,
-          propertyType,
+          category,
+          subCategory,
+          
           projectName,
           propertyName,
           totalBathrooms,
@@ -104,6 +107,7 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
           viewFromProperty,
           landArea,
           unit,
+          
         });
   
         const updatedProperty = await propertyRepo.save(existingProperty);
@@ -121,8 +125,9 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
       const newProperty = propertyRepo.create({
         userId,
         address: newAddress,
-        propertyCategory,
-        propertyType,
+         category,
+          subCategory,
+        
         projectName,
         propertyName,
         totalBathrooms,
@@ -144,6 +149,7 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
         viewFromProperty,
         landArea,
         unit,
+        
       });
   
       const savedProperty = await propertyRepo.save(newProperty);
