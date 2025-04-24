@@ -7,7 +7,7 @@ import { authenticate } from '@/api/middlewares/auth/Authenticate';
 const router = Router();
 
 // Apply authentication middleware to all property routes
-router.use(authenticate);
+// router.use(authenticate);
 
 router.post('/create-update', createOrUpdateProperty);
 router.get('/getAll', getAllProperties);
