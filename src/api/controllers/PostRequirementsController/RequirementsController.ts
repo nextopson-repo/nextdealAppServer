@@ -1,19 +1,20 @@
 
 import { Address } from '@/api/entity/Address';
+import { PostRequirement } from '@/api/entity/PropertyRequirement';
 import { AppDataSource } from '@/server';
 import { Request, Response } from 'express';
 
 export const requireMents =async (req:Request, res:Response) =>{
     try {
         // Extracting the body from the request
-        const  {addressId, userId, postId,state,city, locality,minBudget, maxBudget, category, subCategory, bhks, furnishing, isSale, bhkRequired, landArea, mobileNumber} = req.body;
+        const  {userId, postId,state,city, locality,minBudget, maxBudget, category, subCategory, bhks, furnishing, isSale, bhkRequired, landArea, mobileNumber} = req.body;
 
-        const requirementRepo = AppDataSource.getRepository('PropertyRequirement');
-        const addressRepo = AppDataSource.getRepository('Address');
+        const requirementRepo = AppDataSource.getRepository(PostRequirement);
+        const addressRepo = AppDataSource.getRepository(Address);
 
         // check if requirement already exists
 
-        if(userId || addressId || postId){
+        if(userId && postId){
             const existingRequirement = await requirementRepo.findOne({
                 where:{id: postId},
                 relations: ['addressId']
@@ -35,9 +36,7 @@ export const requireMents =async (req:Request, res:Response) =>{
 
             // update requirement with the new data
             Object.assign(existingRequirement, {
-                userId,
-                addressId,
-                postId,
+               
                 minBudget,
                 maxBudget,
                 category,
@@ -55,7 +54,7 @@ export const requireMents =async (req:Request, res:Response) =>{
         }
          
 
-        // Creating a new requirement if it doesn't exist
+        // // Creating a new requirement if it doesn't exist
          const newAddress = addressRepo.create({
             state: state,
             city: city,
@@ -64,9 +63,6 @@ export const requireMents =async (req:Request, res:Response) =>{
          await addressRepo.save(newAddress);
          
          const newPostRequirement = requirementRepo.create({
-            userId,
-            addressId: newAddress.id,
-            postId,
             minBudget,
             maxBudget,
             category,
