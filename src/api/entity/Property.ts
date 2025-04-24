@@ -42,6 +42,9 @@ export class Property extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   propertyName!: string;
 
+  @Column({ type: 'boolean', nullable: true })
+  isSale!: boolean;
+
   @Column({ type: 'int', nullable: true })
   totalBathrooms!: number;
 
@@ -96,7 +99,6 @@ export class Property extends BaseEntity {
   @Column({ type: 'float', nullable: true })
   landArea!: number;
 
-
   @Column({ type: 'varchar', nullable: true })
   unit!: string;
 
@@ -110,7 +112,7 @@ export class Property extends BaseEntity {
   createdAt!: Date;
 
   @UpdateDateColumn({
-    type: 'timestamp',
+    type: 'timestamp', 
     default: () => 'CURRENT_TIMESTAMP(6)',
     onUpdate: 'CURRENT_TIMESTAMP(6)',
     precision: 6,

@@ -24,6 +24,7 @@ import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 import property from './api/routes/PropertyRoutes/PropertyRoute'; // Ensure this path is correct
+import RequirementsRoutes from './api/routes/PostRequirements/RequirementsRoutes';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -87,6 +88,7 @@ AppDataSource.initialize()
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
     app.use("/api/v1/profile",profile)
+    app.use('/api/v1/postRequirements', RequirementsRoutes)
 
 
     // Error handlers
