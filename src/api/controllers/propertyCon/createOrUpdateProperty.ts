@@ -16,7 +16,6 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
         imageKeys,
         category,
         subCategory,
-        
         projectName,
         propertyName,
         totalBathrooms,
@@ -85,7 +84,6 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
         Object.assign(existingProperty, {
           category,
           subCategory,
-          
           projectName,
           propertyName,
           totalBathrooms,
@@ -125,9 +123,8 @@ export const createOrUpdateProperty = async (req: Request, res: Response, next: 
       const newProperty = propertyRepo.create({
         userId,
         address: newAddress,
-         category,
-          subCategory,
-        
+        category,
+        subCategory,
         projectName,
         propertyName,
         totalBathrooms,
