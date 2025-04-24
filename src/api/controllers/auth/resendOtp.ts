@@ -7,6 +7,7 @@ import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
 import { validateOTPRequest } from '@/common/middleware/otpMiddleware';
 import { sendEmailOTP } from '@/common/utils/mailService';
+import { sendMobileOTP } from '@/common/utils/mobileMsgService';
 
 // Validation schema for resend OTP request
 const resendOtpSchema = z.object({
@@ -122,9 +123,13 @@ export const resendMobileOtp = async (req: Request, res: Response) => {
     user.generateMobileOTP();
     await userLoginRepository.save(user);
 
-    // TODO: Implement SMS service to send OTP
-    // For now, we'll just return it in the response for testing purposes
-    const mobileOTP = user.mobileOTP;
+    // Send OTP via SMS using Twilio
+    const smsResponse = await sendMobileOTP(user.mobileNumber!, user.mobileOTP!);
+    
+    if (smsResponse.statusCode !== StatusCodes.OK) {
+      handleServiceResponse(smsResponse, res);
+      return;
+    }
 
     // Clear OTP from response for security
     user.mobileOTP = null;
@@ -142,8 +147,6 @@ export const resendMobileOtp = async (req: Request, res: Response) => {
             id: user.id,
             mobileNumber: user.mobileNumber,
           },
-          // In production, this would be sent via SMS, not returned in the response
-          mobileOTP,
         },
         StatusCodes.OK
       ),

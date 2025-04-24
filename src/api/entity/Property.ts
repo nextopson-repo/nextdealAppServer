@@ -7,7 +7,7 @@ import {
   CreateDateColumn,
   Entity,
   JoinColumn,
-  OneToOne,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -23,17 +23,17 @@ export class Property extends BaseEntity {
   @Column('uuid')
   userId!: string;
 
-  @OneToOne(() => Address, (address) => address.addressFor)
+  @ManyToOne(() => Address)
   @JoinColumn({ name: 'addressId' })
   address!: Address;
 
   @OneToMany(() => PropertyImage, (image) => image.property)
   propertyImageKeys!: PropertyImage[];
 
-  @Column({ type: 'varchar' })
+  @Column({ type: 'varchar', nullable: false })
   category!: string;
 
-   @Column({ type: 'varchar' })
+   @Column({ type: 'varchar', nullable: false })
   subCategory!: string;
 
   @Column({ type: 'varchar', nullable: true })

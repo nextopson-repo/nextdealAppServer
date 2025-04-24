@@ -111,17 +111,18 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
 // Search property 
 
 export const searchProperty = async (req: Request, res: Response) => {
-  // Implementation for searching properties based on query parameters
-
 try {
   const {category,subCategory, state,city } = req.body
   const propertyRepo = AppDataSource.getRepository(Property)
    const property = await propertyRepo.find({
-      where: { category,subCategory},
-      address:{...(state && {state}),
-      ...(city && {city})
-    },
-
+      where: { 
+        category,
+        subCategory,
+        address: {
+          ...(state && {state}),
+          ...(city && {city})
+        }
+      },
       relations: ['address', 'propertyImageKeys']
     });
     if (!property) {
