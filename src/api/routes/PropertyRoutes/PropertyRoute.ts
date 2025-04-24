@@ -1,6 +1,6 @@
-import { getAllProperties } from '@/api/controllers/propertyCon/PropertyController';
-import { searchProperty } from '@/api/controllers/propertyCon/PropertyController';
-import { createOrUpdateProperty } from '@/api/controllers/propertyCon/createOrUpdateProperty';
+import { getAllProperties } from '@/api/controllers/property/PropertyController';
+import { searchProperty } from '@/api/controllers/property/PropertyController';
+import { createOrUpdateProperty } from '@/api/controllers/property/createOrUpdateProperty';
 import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 

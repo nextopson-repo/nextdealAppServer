@@ -3,75 +3,81 @@ import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { Address } from '@/api/entity/Address';
 import { PropertyImage } from '@/api/entity/PropertyImages';
-import { randomBytes } from 'crypto';
 
-// define types all these fields 
-interface PropertyRequest {
-  propertyId: string;
-  userId: string;
-  addressState: string;
-  addressCity: string;
-  addressLocality: string;
-  imageKeys: string[];
-  category: string;
-  subCategory: string;
-  projectName: string;
-  propertyName: string;
-  totalBathrooms: number;
-  totalRooms: number;
-  propertyPrice: number;
-  carpetArea: number;
-  buildupArea: number;
-  bhks: number;
-  furnishing: string;
-  constructionStatus: string;
-  propertyFacing: string;
-  ageOfTheProperty: string;
-  reraApproved: boolean;
-  amenities: string[];
-  width: number;
-  height: number;
-  totalArea: number;
-  plotArea: number;
-  viewFromProperty: string;
-  landArea: number;
-  unit: string;
+// Property creation/update request type
+export interface PropertyRequest extends Request {
+  body: {
+    propertyId?: string;
+    userId?: string;
+    addressState?: string;
+    addressCity?: string;
+    addressLocality?: string;
+    imageKeys?: string[];
+    category: string;
+    subCategory: string;
+    projectName?: string;
+    propertyName?: string;
+    totalBathrooms?: number;
+    totalRooms?: number;
+    propertyPrice?: number;
+    carpetArea?: number;
+    buildupArea?: number;
+    bhks?: number;
+    furnishing?: string;
+    constructionStatus?: string;
+    propertyFacing?: string;
+    ageOfTheProperty?: string;
+    reraApproved?: boolean;
+    amenities?: string[];
+    width?: number;
+    height?: number;
+    totalArea?: number;
+    plotArea?: number;
+    viewFromProperty?: string;
+    landArea?: number;
+    unit?: string;
+  };
+  user?: {
+    id: string;
+    userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
+    email: string;
+    mobileNumber: string;
+    isAdmin?: boolean;
+  };
 }
-
-export const createOrUpdateProperty = async (req: Request, res: Response) => {
+export const createOrUpdateProperty = async (req: PropertyRequest, res: Response) => {
+  const {
+    propertyId,
+    userId,
+    addressState,
+    addressCity,
+    addressLocality,
+    imageKeys,
+    category,
+    subCategory,
+    projectName,
+    propertyName,
+    totalBathrooms,
+    totalRooms,
+    propertyPrice,
+    carpetArea,
+    buildupArea,
+    bhks,
+    furnishing,
+    constructionStatus,
+    propertyFacing,
+    ageOfTheProperty,
+    reraApproved,
+    amenities,
+    width,
+    height,
+    totalArea,
+    plotArea,
+    viewFromProperty,
+    landArea,
+    unit,
+  } = req.body;
   try {
-    const {
-      propertyId,
-      userId,
-      addressState,
-      addressCity,
-      addressLocality,
-      imageKeys,
-      category,
-      subCategory,
-      projectName,
-      propertyName,
-      totalBathrooms,
-      totalRooms,
-      propertyPrice,
-      carpetArea,
-      buildupArea,
-      bhks,
-      furnishing,
-      constructionStatus,
-      propertyFacing,
-      ageOfTheProperty,
-      reraApproved,
-      amenities,
-      width,
-      height,
-      totalArea,
-      plotArea,
-      viewFromProperty,
-      landArea,
-      unit,
-    } = req.body;
-    
     // Validate required fields for new property
     if (!propertyId && !userId) {
       return res.status(400).json({ message: 'User ID is required for creating a new property' });

@@ -1,4 +1,3 @@
-import { Address } from './../../entity/Address';
 import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
@@ -109,10 +108,17 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
 }; 
 
 // Search property 
+interface PropertySearch {
+  category?: string;
+  subCategory?: string;
+  city?: string;
+  locality?: string;
+  state?: string;} 
 
 export const searchProperty = async (req: Request, res: Response) => {
+  const propertySearch: PropertySearch = req.body;
+  const {category,subCategory, state,city } = propertySearch;
 try {
-  const {category,subCategory, state,city } = req.body
   const propertyRepo = AppDataSource.getRepository(Property)
    const property = await propertyRepo.find({
       where: { 
