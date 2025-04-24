@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { AppDataSource } from '@/server';
+import { UserAuth } from '@/api/entity/UserAuth';
 
-export const authenticate = (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -10,12 +12,29 @@ export const authenticate = (req: Request, res: Response, next: NextFunction) =>
 
   const accessToken = authHeader.split(' ')[1];
 
-  jwt.verify(accessToken, process.env.ACCESS_SECRET_KEY || '', (err: jwt.VerifyErrors | null, payload: any) => {
-    if (err) {
-      return res.status(403).json({ status: 'error', message: 'Need to login again' });
+  try {
+    const payload = jwt.verify(accessToken, process.env.ACCESS_SECRET_KEY || '') as any;
+    
+    // Get user information from the database
+    const userRepository = AppDataSource.getRepository(UserAuth);
+    const user = await userRepository.findOne({ where: { id: payload.id } });
+    
+    if (!user) {
+      return res.status(401).json({ status: 'error', message: 'User not found' });
     }
-
-    console.log('authentication payload: ', payload);
+    
+    // Add user information to the request
+    req.user = {
+      id: user.id,
+      userType: user.userType,
+      email: user.email,
+      mobileNumber: user.mobileNumber
+    };
+    
+    console.log('Authentication successful for user:', user.id);
     next();
-  });
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return res.status(403).json({ status: 'error', message: 'Need to login again' });
+  }
 };
