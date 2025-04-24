@@ -36,7 +36,7 @@ const dataSourceOptions: DataSourceOptions = {
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
   entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty],
-  synchronize: false, 
+  synchronize: true, 
   logging: false, 
   entitySkipConstructor: true,
 };
@@ -82,7 +82,7 @@ AppDataSource.initialize()
     app.use(requestLogger);
 
     // Routes mounting
-    app.use('/', (_: Request, res: Response) => {res.status(200).send('<h1>Hello from NextDeal</h1>')});    
+    //app.use('/', (_: Request, res: Response) => {res.status(200).send('<h1>Hello from NextDeal</h1>')});    
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
