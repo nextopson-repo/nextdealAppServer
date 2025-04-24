@@ -3,6 +3,7 @@ import { searchProperty } from '@/api/controllers/property/PropertyController';
 import { createOrUpdateProperty } from '@/api/controllers/property/createOrUpdateProperty';
 import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
+import { requireMents } from '@/api/controllers/PostRequirementsController/RequirementsController';
 
 const router = Router();
 
@@ -13,4 +14,6 @@ router.post('/create-update', createOrUpdateProperty);
 router.get('/getAll', getAllProperties);
 router.post('/search-property', searchProperty);
 
+router.post('/search-property', searchProperty);
+router.post('/create-update-requirement', requireMents);
 export default router;
