@@ -1,6 +1,6 @@
 import express from 'express';
 import { authenticate } from '../../middlewares/auth/Authenticate';
-import { generateUploadUrl, getDocumentFromBucket } from '@/api/controllers/s3/awsControllers';
+import { generateUploadUrl, getDocumentFromBucket, deleteObjectFromBucket } from '@/api/controllers/s3/awsControllers';
 import rateLimiter from '@/common/middleware/rateLimiter';
 
 const Router = express.Router();
@@ -14,5 +14,6 @@ Router.post('/keytoimg', getDocumentFromBucket);
 
 // Protected routes
 Router.use(authenticate); // Apply authentication middleware to all routes below
+Router.post('/delete', deleteObjectFromBucket);
 
 export default Router;
