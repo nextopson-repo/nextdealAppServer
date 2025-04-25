@@ -115,28 +115,35 @@ export const requireMents = async (req: Request, res: Response) => {
 
 
 // get requirement 
-export const getUserRequirements  = async (req:Request, res:Response) =>{
+export const getUserRequirements = async (req: Request, res: Response) => {
     try {
-    const {userId} = req.body
+        const { userId } = req.body
 
-    const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
-    const userRepo = AppDataSource.getRepository(UserAuth); 
-    const user = await userRepo.findOne({
-        where: { id: userId }
-    });
+        const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
+        const userRepo = AppDataSource.getRepository(UserAuth);
+        const user = await userRepo.findOne({
+            where: { id: userId }
+        });
 
-    if (!user) {
-        return res.status(400).json({ message: 'User not found' });
-    }
+        if (!user) {
+            return res.status(400).json({ message: 'User not found' });
+        }
+        
+        const properties = await requirementRepo.find({
+            where: { userId }
+        });
+        
+        if (properties.length === 0) {
+            return res.status(400).json({ message: "No Property Found" });
+        }
+        
+        res.status(200).json({ message: "Property Found", data: properties });
 
-    
-const property = requirementRepo.find({
-    where:{userId}
-})
-
-
-    
-} catch (error) {
-    
-}
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "server error";
+        res.status(500).json({
+            message: "An error occurred",
+            error: errorMessage
+        });
+    }
 }
