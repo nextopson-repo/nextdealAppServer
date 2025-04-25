@@ -111,107 +111,61 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
 };
 
 export const getAllProperties = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { userId } = req.body;
-
-    if (!userId ) {
-      throw new ErrorHandler('User ID required', 400);
-    }
-    const userRepo = AppDataSource.getRepository(UserAuth);
-    const user = await userRepo.findOne({
-      where: { id: userId }
-    });
-
-    if (!user) {
-      return res.status(400).json({ message: 'User not found' });
-    }
+  try {   
     const propertyRepo = AppDataSource.getRepository(Property);
     
-    // Apply filters based on userType  
-    let properties = await propertyRepo.find();
+    // Get all properties with their relations
+    const properties = await propertyRepo.find({
+      relations: ['address', 'propertyImageKeys'],
+    });
 
     if (!properties || properties.length === 0) {
       throw new ErrorHandler('No properties found', 404);
     }
 
-    // Generate presigned URLs for each property's images
-    const propertiesWithUrls = await Promise.all(properties.map(async (property: Property) => {
-      // Create a plain object for the response
-      const propertyResponse: PropertyResponse = {
-        id: property.id,
-        userId: property.userId,
-        address: property.address,
-        category: property.category,
-        subCategory: property.subCategory,
-        projectName: property.projectName,
-        propertyName: property.propertyName,
-        isSale: property.isSale,
-        totalBathrooms: property.totalBathrooms,
-        totalRooms: property.totalRooms,
-        propertyPrice: property.propertyPrice,
-        carpetArea: property.carpetArea,
-        buildupArea: property.buildupArea,
-        bhks: property.bhks,
-        furnishing: property.furnishing,
-        constructionStatus: property.constructionStatus,
-        propertyFacing: property.propertyFacing,
-        ageOfTheProperty: property.ageOfTheProperty,
-        reraApproved: property.reraApproved,
-        amenities: property.amenities,
-        width: property.width,
-        height: property.height,
-        totalArea: property.totalArea,
-        plotArea: property.plotArea,
-        viewFromProperty: property.viewFromProperty,
-        landArea: property.landArea,
-        unit: property.unit,
-        createdBy: property.createdBy,
-        updatedBy: property.updatedBy,
-        createdAt: property.createdAt,
-        updatedAt: property.updatedAt,
-        propertyImageKeys: []
-      };
-      
-      if (property.propertyImageKeys && property.propertyImageKeys.length > 0) {
-        // Create a new array to store the updated image objects
-        const updatedImages = await Promise.all(
-          property.propertyImageKeys.map(async (image: PropertyImage) => {
-            try {
-              const presignedUrl = await generatePresignedUrl(image.imageKey);
-              // Return a new object with the original image data plus the presigned URL
-              return {
-                id: image.id,
-                imageKey: image.imageKey,
-                imageName: image.imageName,
-                createdBy: image.createdBy,
-                updatedBy: image.updatedBy,
-                createdAt: image.createdAt,
-                updatedAt: image.updatedAt,
-                presignedUrl
-              } as PropertyImageWithUrl;
-            } catch (error) {
-              console.error(`Error generating presigned URL for key ${image.imageKey}:`, error);
-              // Return the image without a presigned URL if generation fails
-              return {
-                id: image.id,
-                imageKey: image.imageKey,
-                imageName: image.imageName,
-                createdBy: image.createdBy,
-                updatedBy: image.updatedBy,
-                createdAt: image.createdAt,
-                updatedAt: image.updatedAt,
-                presignedUrl: ''
-              } as PropertyImageWithUrl;
-            }
-          })
-        );
+    // Process each property to add presigned URLs to images
+    const propertiesWithUrls = await Promise.all(
+      properties.map(async (property) => {
+        const propertyResponse: PropertyResponse = {
+          ...property,
+          propertyImageKeys: []
+        };
+
+        if (property.propertyImageKeys && property.propertyImageKeys.length > 0) {
+          // Create a new array to store the updated image objects
+          const updatedImages = await Promise.all(
+            property.propertyImageKeys.map(async (image: PropertyImage) => {
+              try {
+                const presignedUrl = await generatePresignedUrl(image.imageKey);
+                // Return a new object with the original image data plus the presigned URL
+                return {
+                  id: image.id,
+                  imageKey: image.imageKey,
+                  imageName: image.imageName,
+                  createdBy: image.createdBy,
+                  updatedBy: image.updatedBy,
+                  createdAt: image.createdAt,
+                  updatedAt: image.updatedAt,
+                  presignedUrl
+                } as PropertyImageWithUrl;
+              } catch (error) {
+                console.error(`Error generating presigned URL for key ${image.imageKey}:`, error);
+                // Return the image without a presigned URL if generation fails
+                return {
+                  ...image,
+                  presignedUrl: ''
+                } as PropertyImageWithUrl;
+              }
+            })
+          );
+          
+          // Update the property's image keys with the new objects that include presigned URLs
+          propertyResponse.propertyImageKeys = updatedImages;
+        }
         
-        // Update the property's image keys with the new objects that include presigned URLs
-        propertyResponse.propertyImageKeys = updatedImages;
-      }
-      
-      return propertyResponse;
-    }));
+        return propertyResponse;
+      })
+    );
 
     return res.status(200).json({
       message: 'Properties retrieved successfully',
@@ -280,7 +234,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
     const propertiesWithOwner = await Promise.all(
       properties.map(async (property) => {
-        const user = await userRepo.findOne({ where: { id: property.userId },select:["fullName"] });
+        const user = await userRepo.findOne({ where: { id: property.userId }, select: ["fullName"] });
         return {
           ...property,
           ownerName: user ? user.fullName : 'Unknown',
@@ -288,19 +242,36 @@ export const trendingProperty = async (req: Request, res: Response) => {
       })
     );
 
-     const propertiesImages= await Promise.all(
-       properties.map(async (property) => {
-         
-         return {
-           ...property,
-           propertiesImages: property.propertyImageKeys?.imageKey ?  await generatePresignedUrl(property.propertyImageKeys?.imageKey ) :null,
-         };
-       })
-     );
+    const propertiesWithImages = await Promise.all(
+      propertiesWithOwner.map(async (property) => {
+        const propertyImages = property.propertyImageKeys?.map(async (image) => {
+          try {
+            const presignedUrl = await generatePresignedUrl(image.imageKey);
+            return {
+              ...image,
+              presignedUrl
+            };
+          } catch (error) {
+            console.error(`Error generating presigned URL for key ${image.imageKey}:`, error);
+            return {
+              ...image,
+              presignedUrl: ''
+            };
+          }
+        }) || [];
+
+        const resolvedImages = await Promise.all(propertyImages);
+        
+        return {
+          ...property,
+          propertyImages: resolvedImages
+        };
+      })
+    );
 
     return res.status(200).json({
       message: 'Property retrieved successfully',
-      property: [propertiesWithOwner,propertiesImages]
+      property: propertiesWithImages
     });
   } catch (error) {
     console.error(error);
