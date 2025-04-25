@@ -11,8 +11,8 @@ import {
 import { Address } from './Address';
 import { randomBytes } from 'crypto';
 
-@Entity('PostRequirement')
-export class PostRequirement extends BaseEntity {
+@Entity('PropertyRequirement')
+export class PropertyRequirement extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -28,15 +28,6 @@ export class PostRequirement extends BaseEntity {
 
   @Column({ type: 'varchar', nullable: true })
   minBudget!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  state!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  city!: string;
-
-  @Column({ type: 'varchar', nullable: true })
-  locality!: string;
 
   @Column({ type: 'varchar', nullable: true })
   maxBugdget!: string;
@@ -61,9 +52,6 @@ export class PostRequirement extends BaseEntity {
 
   @Column({ type: 'float', nullable: true })
   landArea!: number;
-
-  @Column({ type: 'varchar', length: 15, unique: true })
-  mobileNumber!: string;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;

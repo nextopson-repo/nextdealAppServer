@@ -3,7 +3,7 @@ import { searchProperty } from '@/api/controllers/property/PropertyController';
 import { createOrUpdateProperty } from '@/api/controllers/property/createOrUpdateProperty';
 import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
-import { requireMents } from '@/api/controllers/PostRequirementsController/RequirementsController';
+import { requireMents } from '@/api/controllers/property/RequirementsController';
 
 const router = Router();
 

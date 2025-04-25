@@ -24,7 +24,7 @@ import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 import property from './api/routes/PropertyRoutes/PropertyRoute'; 
-import { PostRequirement } from './api/entity/PropertyRequirement';
+import { PropertyRequirement } from './api/entity/PropertyRequirement';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -36,7 +36,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty, PostRequirement],
+  entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement],
   synchronize: true, 
   logging: false, 
   entitySkipConstructor: true,
