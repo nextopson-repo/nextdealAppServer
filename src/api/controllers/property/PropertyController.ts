@@ -1,11 +1,10 @@
+import { PropertyImage } from '@/api/entity/PropertyImages';
 import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { ErrorHandler } from '@/api/middlewares/error';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { generatePresignedUrl } from '@/api/controllers/s3/awsControllers';
-import { PropertyImage } from '@/api/entity/PropertyImages';
-
 // Interface for property image with presigned URL
 interface PropertyImageWithUrl {
   id: string;
@@ -53,7 +52,6 @@ interface PropertyResponse {
   updatedAt: Date;
   propertyImageKeys: PropertyImageWithUrl[];
 }
-
 export const getUserProperties = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId } = req.body;
@@ -114,10 +112,10 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
 
 export const getAllProperties = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { userId, userType } = req.body;
+    const { userId } = req.body;
 
-    if (!userId || !userType) {
-      throw new ErrorHandler('User ID and User Type are required', 400);
+    if (!userId ) {
+      throw new ErrorHandler('User ID required', 400);
     }
     const userRepo = AppDataSource.getRepository(UserAuth);
     const user = await userRepo.findOne({
@@ -128,25 +126,9 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
       return res.status(400).json({ message: 'User not found' });
     }
     const propertyRepo = AppDataSource.getRepository(Property);
-    let query = propertyRepo.createQueryBuilder('property')
-      .leftJoinAndSelect('property.address', 'address')
-      .leftJoinAndSelect('property.propertyImageKeys', 'propertyImageKeys');
-
-    // Apply filters based on userType
-    if (userType === 'admin') {
-      // Admin can see all properties
-      query = query.orderBy('property.createdAt', 'DESC');
-    } else if (userType === 'agent') {
-      // Agent can see their own properties
-      query = query.where('property.userId = :userId', { userId })
-        .orderBy('property.createdAt', 'DESC');
-    } else {
-      // Regular users can only see their own properties
-      query = query.where('property.userId = :userId', { userId })
-        .orderBy('property.createdAt', 'DESC');
-    }
-
-    let properties = await query.getMany();
+    
+    // Apply filters based on userType  
+    let properties = await propertyRepo.find();
 
     if (!properties || properties.length === 0) {
       throw new ErrorHandler('No properties found', 404);
@@ -241,7 +223,7 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
   }
 };
 
-// Search property 
+// Search property
 interface PropertySearch {
   category?: string;
   subCategory?: string;
@@ -254,17 +236,17 @@ export const searchProperty = async (req: Request, res: Response) => {
   const propertySearch: PropertySearch = req.body;
   const { category, subCategory, state, city } = propertySearch;
   try {
-    const propertyRepo = AppDataSource.getRepository(Property)
+    const propertyRepo = AppDataSource.getRepository(Property);
     const property = await propertyRepo.find({
       where: {
         category,
         subCategory,
         address: {
           ...(state && { state }),
-          ...(city && { city })
-        }
+          ...(city && { city }),
+        },
       },
-      relations: ['address', 'propertyImageKeys']
+      relations: ['address', 'propertyImageKeys'],
     });
     if (!property) {
       throw new ErrorHandler('Property not found', 404);
@@ -272,6 +254,85 @@ export const searchProperty = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: 'Property retrieved successfully',
       property,
+    });
+  } catch (error) {
+    throw new ErrorHandler('server error', 500);
+  }
+};
+
+// trending Property
+
+export const trendingProperty = async (req: Request, res: Response) => {
+  const { category, subCategory } = req.body;
+
+  try {
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+
+    const properties = await propertyRepo.find({
+      where: { category, subCategory },
+      relations: ['address', 'propertyImageKeys'],
+    });
+
+    if (!properties || properties.length === 0) {
+      throw new ErrorHandler('Property not found', 404);
+    }
+
+    const propertiesWithOwner = await Promise.all(
+      properties.map(async (property) => {
+        const user = await userRepo.findOne({ where: { id: property.userId },select:["fullName"] });
+        return {
+          ...property,
+          ownerName: user ? user.fullName : 'Unknown',
+        };
+      })
+    );
+
+     const propertiesImages= await Promise.all(
+       properties.map(async (property) => {
+         
+         return {
+           ...property,
+           propertiesImages: property.propertyImageKeys?.imageKey ?  await generatePresignedUrl(property.propertyImageKeys?.imageKey ) :null,
+         };
+       })
+     );
+
+    return res.status(200).json({
+      message: 'Property retrieved successfully',
+      property: [propertiesWithOwner,propertiesImages]
+    });
+  } catch (error) {
+    console.error(error);
+    throw new ErrorHandler('Server error', 500);
+  }
+};
+
+//offering Property
+
+export const offeringProperty = async (req: Request, res: Response) => {
+  const { filter } = req.body;
+  if (!filter) {
+    return res.status(400).json({
+      message: 'filter required',
+    });
+  }
+  try {
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const existingProperties = await propertyRepo.find({
+      where: { subCategory: filter },
+      relations: ['address', 'propertyImageKeys'],
+    });
+
+    if (!existingProperties) {
+      return res.status(400).json({
+        message: 'filter not found',
+      });
+    }
+
+    return res.status(201).json({
+      message: 'Property offered successfully',
+      property: existingProperties,
     });
   } catch (error) {
     throw new ErrorHandler('server error', 500);
