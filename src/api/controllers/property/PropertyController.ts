@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { ErrorHandler } from '@/api/middlewares/error';
+import { UserAuth } from '@/api/entity';
 
 export const getUserProperties = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -68,7 +69,14 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
     if (!userId || !userType) {
       throw new ErrorHandler('User ID and User Type are required', 400);
     }
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const user = await userRepo.findOne({
+      where: { id: userId }
+    });
 
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' });
+    }
     const propertyRepo = AppDataSource.getRepository(Property);
     let query = propertyRepo.createQueryBuilder('property')
       .leftJoinAndSelect('property.address', 'address')
@@ -84,7 +92,7 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
         userId,
         isPublic: true
       })
-      .orderBy('property.createdAt', 'DESC');
+        .orderBy('property.createdAt', 'DESC');
     } else {
       // Regular users can only see their own properties
       query = query.where('property.userId = :userId', { userId })
@@ -105,7 +113,7 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
   } catch (error) {
     next(error);
   }
-}; 
+};
 
 // Search property 
 interface PropertySearch {
@@ -113,20 +121,21 @@ interface PropertySearch {
   subCategory?: string;
   city?: string;
   locality?: string;
-  state?: string;} 
+  state?: string;
+}
 
 export const searchProperty = async (req: Request, res: Response) => {
   const propertySearch: PropertySearch = req.body;
-  const {category,subCategory, state,city } = propertySearch;
-try {
-  const propertyRepo = AppDataSource.getRepository(Property)
-   const property = await propertyRepo.find({
-      where: { 
+  const { category, subCategory, state, city } = propertySearch;
+  try {
+    const propertyRepo = AppDataSource.getRepository(Property)
+    const property = await propertyRepo.find({
+      where: {
         category,
         subCategory,
         address: {
-          ...(state && {state}),
-          ...(city && {city})
+          ...(state && { state }),
+          ...(city && { city })
         }
       },
       relations: ['address', 'propertyImageKeys']
@@ -138,7 +147,7 @@ try {
       message: 'Property retrieved successfully',
       property,
     });
-} catch (error) {
-  throw new ErrorHandler('server error', 500);
+  } catch (error) {
+    throw new ErrorHandler('server error', 500);
   }
 };

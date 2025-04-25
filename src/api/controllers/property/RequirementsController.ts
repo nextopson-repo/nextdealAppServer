@@ -108,8 +108,35 @@ export const requireMents = async (req: Request, res: Response) => {
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
         res.status(500).json({ 
             message: "An error occurred", 
-            error: errorMessage 
+            error: errorMessage
         });
     }
 };
 
+
+// get requirement 
+export const getUserRequirements  = async (req:Request, res:Response) =>{
+    try {
+    const {userId} = req.body
+
+    const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
+    const userRepo = AppDataSource.getRepository(UserAuth); 
+    const user = await userRepo.findOne({
+        where: { id: userId }
+    });
+
+    if (!user) {
+        return res.status(400).json({ message: 'User not found' });
+    }
+
+    
+const property = requirementRepo.find({
+    where:{userId}
+})
+
+
+    
+} catch (error) {
+    
+}
+}
