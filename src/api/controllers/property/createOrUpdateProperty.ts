@@ -150,7 +150,9 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       if (height) propertyUpdateData.height = height;
       if (totalArea) propertyUpdateData.totalArea = totalArea;
       if (plotArea) propertyUpdateData.plotArea = plotArea;
-      if (viewFromProperty) propertyUpdateData.viewFromProperty = viewFromProperty;
+      if (viewFromProperty) {
+        propertyUpdateData.viewFromProperty = Array.isArray(viewFromProperty) ? viewFromProperty : [viewFromProperty];
+      }
       if (landArea) propertyUpdateData.landArea = landArea;
       if (unit) propertyUpdateData.unit = unit;
 

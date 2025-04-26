@@ -26,6 +26,10 @@ import { RepublishProperty } from './api/entity/RepublishProperties';
 import property from './api/routes/PropertyRoutes/PropertyRoute'; 
 import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
+// Ensure this path is correct
+import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
+import { userkyc } from './api/entity/userkyc'; 
+
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -37,7 +41,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions],
+  entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions,userkyc],
   synchronize: true, 
   logging: false, 
   entitySkipConstructor: true,
@@ -90,6 +94,7 @@ AppDataSource.initialize()
     app.use('/api/v1/property', property);
     app.use("/api/v1/profile",profile)
 app.use("/api/v1/dropdown", DropDownRouter)
+ app.use('/api/v1/kyc', kycProcessRoutes);
   
     // Error handlers
     app.use(errorHandler());
