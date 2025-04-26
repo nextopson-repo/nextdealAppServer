@@ -2,7 +2,8 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { Address } from '@/api/entity/Address';
-import { PropertyImage } from '@/api/entity/PropertyImages';
+import { ErrorHandler } from '@/api/middlewares/error';
+import { UserAuth } from '@/api/entity';
 
 // Property creation/update request type
 export interface PropertyRequest extends Request {
@@ -12,11 +13,12 @@ export interface PropertyRequest extends Request {
     addressState?: string;
     addressCity?: string;
     addressLocality?: string;
-    imageKeys?: string[];
+    imagekeys?: string[];
     category: string;
     subCategory: string;
     projectName?: string;
     propertyName?: string;
+    isSale?: boolean;
     totalBathrooms?: number;
     totalRooms?: number;
     propertyPrice?: number;
@@ -45,6 +47,7 @@ export interface PropertyRequest extends Request {
     isAdmin?: boolean;
   };
 }
+
 export const createOrUpdateProperty = async (req: PropertyRequest, res: Response) => {
   const {
     propertyId,
@@ -52,11 +55,12 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
     addressState,
     addressCity,
     addressLocality,
-    imageKeys,
+    imagekeys,
     category,
     subCategory,
     projectName,
     propertyName,
+    isSale,
     totalBathrooms,
     totalRooms,
     propertyPrice,
@@ -77,26 +81,40 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
     landArea,
     unit,
   } = req.body;
+
   try {
     // Validate required fields for new property
     if (!propertyId && !userId) {
-      return res.status(400).json({ message: 'User ID is required for creating a new property' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'User ID is required for creating a new property' 
+      });
     }
-    
 
     const propertyRepo = AppDataSource.getRepository(Property);
     const addressRepo = AppDataSource.getRepository(Address);
-    const propertyImageRepo = AppDataSource.getRepository(PropertyImage);
+
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const user = await userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     // Check if property exists for update
     if (propertyId) {
       const existingProperty = await propertyRepo.findOne({
         where: { id: propertyId },
-        relations: ['address', 'propertyImageKeys'],
+        relations: ['address'],
       });
 
       if (!existingProperty) {
-        return res.status(404).json({ message: 'Property not found' });
+        return res.status(404).json({  
+          success: false,
+          message: 'Property not found' 
+        });
       }
 
       // Update address if provided
@@ -105,23 +123,6 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
         existingProperty.address.city = addressCity || existingProperty.address.city;
         existingProperty.address.locality = addressLocality || existingProperty.address.locality;
         await addressRepo.save(existingProperty.address);
-      }
-
-      // Update property images if provided
-      if (imageKeys && Array.isArray(imageKeys)) {
-        // Delete existing images
-        await propertyImageRepo.delete({ property: existingProperty });
-
-        // Create new images
-        const newImages = imageKeys.map((imageKey: string) => {
-          return propertyImageRepo.create({
-            property: existingProperty,
-            imageKey,
-            imageName: imageKey.split('/').pop() || imageKey,
-          });
-        });
-
-        await propertyImageRepo.save(newImages);
       }
 
       // Update property with only provided fields
@@ -134,6 +135,7 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       // Only include other fields that are provided in the request
       if (projectName) propertyUpdateData.projectName = projectName;
       if (propertyName) propertyUpdateData.propertyName = propertyName;
+      if (isSale !== undefined) propertyUpdateData.isSale = isSale;
       if (totalBathrooms) propertyUpdateData.totalBathrooms = totalBathrooms;
       if (totalRooms) propertyUpdateData.totalRooms = totalRooms;
       if (propertyPrice) propertyUpdateData.propertyPrice = propertyPrice;
@@ -153,18 +155,16 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       if (viewFromProperty) propertyUpdateData.viewFromProperty = viewFromProperty;
       if (landArea) propertyUpdateData.landArea = landArea;
       if (unit) propertyUpdateData.unit = unit;
-
-      console.log('Property update data:', JSON.stringify(propertyUpdateData, null, 2));
+      if (imagekeys) propertyUpdateData.imagekeys = imagekeys;
       
       Object.assign(existingProperty, propertyUpdateData);
 
       const updatedProperty = await propertyRepo.save(existingProperty);
-      console.log('Updated property:', JSON.stringify(updatedProperty, null, 2));
       
       // Fetch the updated property with all relations
       const propertyWithRelations = await propertyRepo.findOne({
         where: { id: updatedProperty.id },
-        relations: ['address', 'propertyImageKeys'],
+        relations: ['address'],
       });
       
       return res.status(200).json({ 
@@ -177,7 +177,10 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
     // Create new property
     // Validate required fields for new property
     if (!addressState || !addressCity || !addressLocality) {
-      return res.status(400).json({ message: 'Address details are required for creating a new property' });
+      return res.status(400).json({ 
+        success: false,
+        message: 'Address details are required for creating a new property' 
+      });
     }
 
     const newAddress = addressRepo.create({
@@ -191,10 +194,12 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
     const newProperty = propertyRepo.create({
       userId,
       address: newAddress,
+      imagekeys,
       category, // Required field
       subCategory, // Required field
       projectName,
       propertyName,
+      isSale,
       totalBathrooms,
       totalRooms,
       propertyPrice,
@@ -216,33 +221,13 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       unit,
     });
 
-    // Log the property object before saving to debug
-    console.log('Property to save:', JSON.stringify(newProperty, null, 2));
-
     const savedProperty = await propertyRepo.save(newProperty);
-    console.log('Saved property:', JSON.stringify(savedProperty, null, 2));
-
-    // Create property images if provided
-    if (imageKeys && Array.isArray(imageKeys)) {
-      const newImages = imageKeys.map((imageKey: string) => {
-        return propertyImageRepo.create({
-          property: savedProperty,
-          imageKey,
-          imageName: imageKey.split('/').pop() || imageKey,
-        });
-      });
-
-      await propertyImageRepo.save(newImages);
-    }
 
     // Fetch the created property with all relations
     const propertyWithRelations = await propertyRepo.findOne({
       where: { id: savedProperty.id },
-      relations: ['address', 'propertyImageKeys'],
+      relations: ['address'],
     });
-
-    // Log the property after fetching to debug
-    console.log('Property after fetch:', JSON.stringify(propertyWithRelations, null, 2));
 
     return res.status(201).json({ 
       success: true,
