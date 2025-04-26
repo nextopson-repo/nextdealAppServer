@@ -1,27 +1,66 @@
-import { PropertyImage } from '@/api/entity/PropertyImages';
 import { Request, Response, NextFunction } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { ErrorHandler } from '@/api/middlewares/error';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { generatePresignedUrl } from '@/api/controllers/s3/awsControllers';
+import { Address } from '@/api/entity/Address';
+import { promise } from 'zod';
+import { PropertyImage } from '@/api/entity/PropertyImages';
+
+// Property creation/update request type
+export interface PropertyRequest extends Request {
+  body: {
+    propertyId?: string;
+    userId?: string;
+    addressState?: string;
+    addressCity?: string;
+    addressLocality?: string;
+    imageKeys?: string[];
+    category: string;
+    subCategory: string;
+    projectName?: string;
+    propertyName?: string;
+    totalBathrooms?: number;
+    totalRooms?: number;
+    propertyPrice?: number;
+    carpetArea?: number;
+    buildupArea?: number;
+    bhks?: number;
+    furnishing?: string;
+    constructionStatus?: string;
+    propertyFacing?: string;
+    ageOfTheProperty?: string;
+    reraApproved?: boolean;
+    amenities?: string[];
+    width?: number;
+    height?: number;
+    totalArea?: number;
+    plotArea?: number;
+    viewFromProperty?: string;
+    landArea?: number;
+    unit?: string;
+  };
+  user?: {
+    id: string;
+    userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
+    email: string;
+    mobileNumber: string;
+    isAdmin?: boolean;
+  }
+}
+
 // Interface for property image with presigned URL
 interface PropertyImageWithUrl {
-  id: string;
   imageKey: string;
-  imageName: string | null;
-  createdBy: string;
-  updatedBy: string;
-  createdAt: Date;
-  updatedAt: Date;
   presignedUrl: string;
 }
 
-// Interface for property response with images that have presigned URLs
-interface PropertyResponse {
+// Type for property response with images that have presigned URLs
+type PropertyResponseType = {
   id: string;
   userId: string;
-  address: any;
+  address: Address;
   category: string;
   subCategory: string;
   projectName: string | null;
@@ -50,8 +89,10 @@ interface PropertyResponse {
   updatedBy: string;
   createdAt: Date;
   updatedAt: Date;
-  propertyImageKeys: PropertyImageWithUrl[];
+  imagekeys: string[];
+  propertyImages: PropertyImageWithUrl[];
 }
+
 export const getUserProperties = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId } = req.body;
@@ -116,7 +157,7 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
     
     // Get all properties with their relations
     const properties = await propertyRepo.find({
-      relations: ['address', 'propertyImageKeys'],
+      relations: ['address'],
     });
 
     if (!properties || properties.length === 0) {
@@ -126,41 +167,32 @@ export const getAllProperties = async (req: Request, res: Response, next: NextFu
     // Process each property to add presigned URLs to images
     const propertiesWithUrls = await Promise.all(
       properties.map(async (property) => {
-        const propertyResponse: PropertyResponse = {
+        const propertyResponse: PropertyResponseType = {
           ...property,
-          propertyImageKeys: []
+          propertyImages: []
         };
 
-        if (property.propertyImageKeys && property.propertyImageKeys.length > 0) {
+        if (property.imagekeys && property.imagekeys.length > 0) {
           // Create a new array to store the updated image objects
           const updatedImages = await Promise.all(
-            property.propertyImageKeys.map(async (image: PropertyImage) => {
+            property.imagekeys.map(async (imageKey): Promise<PropertyImageWithUrl> => {
               try {
-                const presignedUrl = await generatePresignedUrl(image.imageKey);
-                // Return a new object with the original image data plus the presigned URL
+                const presignedUrl = await generatePresignedUrl(imageKey);
                 return {
-                  id: image.id,
-                  imageKey: image.imageKey,
-                  imageName: image.imageName,
-                  createdBy: image.createdBy,
-                  updatedBy: image.updatedBy,
-                  createdAt: image.createdAt,
-                  updatedAt: image.updatedAt,
+                  imageKey,
                   presignedUrl
-                } as PropertyImageWithUrl;
+                };
               } catch (error) {
-                console.error(`Error generating presigned URL for key ${image.imageKey}:`, error);
-                // Return the image without a presigned URL if generation fails
+                console.error(`Error generating presigned URL for key ${imageKey}:`, error);
                 return {
-                  ...image,
+                  imageKey,
                   presignedUrl: ''
-                } as PropertyImageWithUrl;
+                };
               }
             })
           );
           
-          // Update the property's image keys with the new objects that include presigned URLs
-          propertyResponse.propertyImageKeys = updatedImages;
+          propertyResponse.propertyImages = updatedImages;
         }
         
         return propertyResponse;
@@ -191,7 +223,8 @@ export const searchProperty = async (req: Request, res: Response) => {
   const { category, subCategory, state, city } = propertySearch;
   try {
     const propertyRepo = AppDataSource.getRepository(Property);
-    const property = await propertyRepo.find({
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const properties = await propertyRepo.find({
       where: {
         category,
         subCategory,
@@ -202,12 +235,58 @@ export const searchProperty = async (req: Request, res: Response) => {
       },
       relations: ['address', 'propertyImageKeys'],
     });
-    if (!property) {
+    if (!properties || properties.length === 0){
       throw new ErrorHandler('Property not found', 404);
     }
+
+    // Add owner information to properties
+    const propertiesWithOwner = await Promise.all(
+      properties.map(async (property) => {
+        const user = await userRepo.findOne({ where: { id: property.userId }, select: ['fullName'] });
+        return {
+          ...property,
+          ownerName: user ? user.fullName : 'Unknown',
+        };
+      })
+    );
+
+    // Add presigned URLs to property images
+    const propertiesWithImages = await Promise.all(
+      propertiesWithOwner.map(async (property) => {
+        const propertyResponse: PropertyResponseType & { ownerName: string } = {
+          ...property,
+          propertyImages: []
+        };
+
+        if (property.imagekeys && property.imagekeys.length > 0) {
+          const propertyImages = await Promise.all(
+            property.imagekeys.map(async (imageKey): Promise<PropertyImageWithUrl> => {
+              try {
+                const presignedUrl = await generatePresignedUrl(imageKey);
+                return {
+                  imageKey,
+                  presignedUrl
+                };
+              } catch (error) {
+                console.error(`Error generating presigned URL for key ${imageKey}:`, error);
+                return {
+                  imageKey,
+                  presignedUrl: ''
+                };
+              }
+            })
+          );
+
+          propertyResponse.propertyImages = propertyImages;
+        }
+        
+        return propertyResponse;
+      })
+    );
+
     return res.status(200).json({
       message: 'Property retrieved successfully',
-      property,
+      property: propertiesWithImages
     });
   } catch (error) {
     throw new ErrorHandler('server error', 500);
@@ -225,7 +304,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
     const properties = await propertyRepo.find({
       where: { category, subCategory },
-      relations: ['address', 'propertyImageKeys'],
+      relations: ['address'],
     });
 
     if (!properties || properties.length === 0) {
@@ -244,28 +323,34 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
     const propertiesWithImages = await Promise.all(
       propertiesWithOwner.map(async (property) => {
-        const propertyImages = property.propertyImageKeys?.map(async (image) => {
-          try {
-            const presignedUrl = await generatePresignedUrl(image.imageKey);
-            return {
-              ...image,
-              presignedUrl
-            };
-          } catch (error) {
-            console.error(`Error generating presigned URL for key ${image.imageKey}:`, error);
-            return {
-              ...image,
-              presignedUrl: ''
-            };
-          }
-        }) || [];
-
-        const resolvedImages = await Promise.all(propertyImages);
-        
-        return {
+        const propertyResponse: PropertyResponseType & { ownerName: string } = {
           ...property,
-          propertyImages: resolvedImages
+          propertyImages: []
         };
+
+        if (property.imagekeys && property.imagekeys.length > 0) {
+          const propertyImages = await Promise.all(
+            property.imagekeys.map(async (imageKey): Promise<PropertyImageWithUrl> => {
+              try {
+                const presignedUrl = await generatePresignedUrl(imageKey);
+                return {
+                  imageKey,
+                  presignedUrl
+                };
+              } catch (error) {
+                console.error(`Error generating presigned URL for key ${imageKey}:`, error);
+                return {
+                  imageKey,
+                  presignedUrl: ''
+                };
+              }
+            })
+          );
+
+          propertyResponse.propertyImages = propertyImages;
+        }
+        
+        return propertyResponse;
       })
     );
 
