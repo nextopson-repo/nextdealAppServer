@@ -13,7 +13,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { Address } from "./Address";
-import { PropertyImage } from "./PropertyImages";
+
 
 @Entity('Property')
 export class Property extends BaseEntity {
@@ -27,13 +27,13 @@ export class Property extends BaseEntity {
   @JoinColumn({ name: 'addressId' })
   address!: Address;
 
-  @OneToMany(() => PropertyImage, (image) => image.property)
-  propertyImageKeys!: PropertyImage[];
+  @Column({ type: 'simple-array', nullable: true })
+  imagekeys!: string[];
 
   @Column({ type: 'varchar', nullable: false })
   category!: string;
 
-   @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', nullable: false })
   subCategory!: string;
 
   @Column({ type: 'varchar', nullable: true })
@@ -112,7 +112,7 @@ export class Property extends BaseEntity {
   createdAt!: Date;
 
   @UpdateDateColumn({
-    type: 'timestamp', 
+    type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP(6)',
     onUpdate: 'CURRENT_TIMESTAMP(6)',
     precision: 6,
