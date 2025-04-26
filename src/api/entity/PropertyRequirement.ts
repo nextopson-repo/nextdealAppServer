@@ -53,6 +53,10 @@ export class PropertyRequirement extends BaseEntity {
   @Column({ type: 'float', nullable: true })
   landArea!: number;
 
+  @Column({ type: 'float', nullable: true })
+  plotArea!: number;
+
+  
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
 

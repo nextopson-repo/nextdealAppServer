@@ -62,9 +62,14 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'int', nullable: true })
   bhks!: number;
+   
+  
 
   @Column({ type: 'varchar', nullable: true })
   furnishing!: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  addFurnishing!: string[];
 
   @Column({ type: 'varchar', nullable: true })
   constructionStatus!: string;
@@ -88,19 +93,52 @@ export class Property extends BaseEntity {
   height!: number;
 
   @Column({ type: 'float', nullable: true })
+  length!: number;
+
+  @Column({ type: 'float', nullable: true })
   totalArea!: number;
 
   @Column({ type: 'float', nullable: true })
   plotArea!: number;
 
-  @Column({ type: 'varchar', nullable: true })
-  viewFromProperty!: string;
+  @Column({ type: 'simple-array', nullable: true })
+  viewFromProperty!: string[];
 
   @Column({ type: 'float', nullable: true })
   landArea!: number;
 
+  @Column({ type: 'float', nullable: true })
+  distFromOutRRoad!: number;
+
   @Column({ type: 'varchar', nullable: true })
   unit!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  soilType!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  approachRoad!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  totalfloors!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  officefloor!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  yourfloor!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  cabins!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  parking!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  washroom!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  availablefor!: string;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;

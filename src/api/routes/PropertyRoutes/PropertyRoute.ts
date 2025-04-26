@@ -11,7 +11,7 @@ const router = Router();
 // router.use(authenticate);
 
 router.post('/create-update', createOrUpdateProperty);
-router.get('/getAll', getAllProperties);
+router.post('/getAll', getAllProperties);
 router.post('/search-property', searchProperty);
 
 router.post('/search-property', searchProperty);
