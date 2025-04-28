@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { pino } from 'pino';
 import swaggerUi from 'swagger-ui-express';
 import { DataSource, DataSourceOptions } from 'typeorm';
+import fileUpload from 'express-fileupload'; // Add this import
 
 import errorHandler from '@/common/middleware/errorHandler';
 import rateLimiter from '@/common/middleware/rateLimiter';
@@ -14,11 +15,11 @@ import { UserAuth } from './api/entity';
 import authRoutes from './api/routes/auth/AuthRoutes';
 import s3bucket from './api/routes/aws/s3';
 import profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
-import DropDownRouter from './api/routes/dropDown/dropdown'
+import DropDownRouter from './api/routes/dropDown/dropdown';
 import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
-import { PropertyImage } from './api/entity/PropertyImages'
+import { PropertyImage } from './api/entity/PropertyImages';
 import { Address } from './api/entity/Address';
 import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
@@ -26,6 +27,9 @@ import { RepublishProperty } from './api/entity/RepublishProperties';
 import property from './api/routes/PropertyRoutes/PropertyRoute'; 
 import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
+import imageClassificationRouter from './api/imageClassification/imageClassificationRouter';
+import nsfwDetectionRouter from './api/nsfw/nsfwDetectionRouter';
+
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -37,7 +41,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions],
+  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, RepublishProperty, PropertyRequirement, DropdownOptions],
   synchronize: true, 
   logging: false, 
   entitySkipConstructor: true,
@@ -79,18 +83,20 @@ AppDataSource.initialize()
     );
     app.use(helmet());
     app.use(rateLimiter);
+   
 
     // Request logging
     app.use(requestLogger);
 
     // Routes mounting
-    // app.use('/', (_: Request, res: Response) => {res.status(200).send('<h1>Hello from NextDeal</h1>')});    
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
-    app.use("/api/v1/profile",profile)
-app.use("/api/v1/dropdown", DropDownRouter)
-  
+    app.use('/api/v1/profile', profile);
+    app.use('/api/v1/dropdown', DropDownRouter);
+    app.use('/api/v1/image-classification', imageClassificationRouter);
+    app.use('/api/v1/nsfw-detection', nsfwDetectionRouter);
+
     // Error handlers
     app.use(errorHandler());
   })
@@ -100,4 +106,3 @@ app.use("/api/v1/dropdown", DropDownRouter)
   });
 
 export { app, AppDataSource, logger };
-
