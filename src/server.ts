@@ -18,7 +18,6 @@ import DropDownRouter from './api/routes/dropDown/dropdown'
 import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
-import { PropertyImage } from './api/entity/PropertyImages'
 import { Address } from './api/entity/Address';
 import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
@@ -41,11 +40,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-<<<<<<< HEAD
-  entities: [UserAuth, Property, PropertyImage, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions,userkyc],
-=======
   entities: [UserAuth, Property, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions],
->>>>>>> 3e37f16b1ec6683a722cb27779a6a7fc53004459
   synchronize: true, 
   logging: false, 
   entitySkipConstructor: true,

@@ -17,6 +17,7 @@ import {
   checkForProfileCompletion,
 } from '../../controllers/profile/Profile';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
+import { getUserProfile } from '@/api/controllers/profile/userprofile';
 
 const Router = express.Router();
 
@@ -38,5 +39,7 @@ Router.post('/your-personal-details-customer', getPersonalDetailsCustomer);
 Router.post('/personal-customer', setPersonalDetailsCustomer);
 
 Router.post('/check-for-profile-completion', checkForProfileCompletion);
+
+
 
 export default Router;
