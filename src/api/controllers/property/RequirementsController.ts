@@ -9,7 +9,7 @@ export const requireMents = async (req: Request, res: Response) => {
         // Extracting the body from the request
         const { 
             userId, 
-            registredId,
+            registeredId,
             state, 
             city, 
             locality, 
@@ -36,9 +36,9 @@ export const requireMents = async (req: Request, res: Response) => {
         }
 
         // Check if requirement already exists
-        if (userId && registredId) {
+        if (userId && registeredId) {
             const existingRequirement = await requirementRepo.findOne({
-                where: { id: registredId },
+                where: { id: registeredId },
                 relations: ['addressId']
             });
 
