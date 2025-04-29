@@ -27,7 +27,7 @@ import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
 // Ensure this path is correct
 import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
-import { userkyc } from './api/entity/userkyc'; 
+import { UserKyc } from './api/entity/userkyc'; 
 
 const logger = pino({ name: 'server start' });
 const app: Express = express();
@@ -40,7 +40,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions],
+  entities: [UserAuth, Property, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions,UserKyc],
   synchronize: true, 
   logging: false, 
   entitySkipConstructor: true,

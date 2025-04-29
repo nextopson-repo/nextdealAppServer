@@ -9,8 +9,10 @@ export const EditUserProfile = async (req: Request, res: Response) => {
   }
 
   try {
+
     const user = await UserAuth.findOne({
       where: { id: userId },
+      select: ["email","id", "userProfileKey"],
     });
 
     if (!user) {
@@ -30,7 +32,7 @@ export const EditUserProfile = async (req: Request, res: Response) => {
 
     return res.json({
       message: "User profile updated successfully",
-      data: user,
+      data: { email: user.email, userProfileKey: user.userProfileKey, id: user.id },
     });
   } catch (error) {
     console.error("Error updating user profile:", error);

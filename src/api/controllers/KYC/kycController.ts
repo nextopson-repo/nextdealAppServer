@@ -1,5 +1,5 @@
 import { UserAuth } from "@/api/entity";
-import { userkyc } from "@/api/entity/userkyc";
+import { UserKyc } from "@/api/entity/userkyc";
 import { AppDataSource } from "@/server";
 import { Request, Response } from "express";
 
@@ -8,7 +8,7 @@ export const kycController = async (req: Request, res: Response) => {
   const { userId, reraIdState, reraId, aadharcardNumber, aadharcardAddress, aadharImageKeys, selfieImageKey } = req.body;
   
   try {
-    const kycRepo = AppDataSource.getRepository(userkyc);
+    const kycRepo = AppDataSource.getRepository(UserKyc);
     const userRepo = AppDataSource.getRepository(UserAuth);
 
     const user = await userRepo.findOne({ where: { id: userId } });

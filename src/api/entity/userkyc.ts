@@ -10,8 +10,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-@Entity('userkyc')
-export class userkyc extends BaseEntity {
+@Entity('UserKyc')
+export class UserKyc extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
