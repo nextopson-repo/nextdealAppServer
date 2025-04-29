@@ -81,7 +81,7 @@ type PropertyResponseType = {
   height: number | null;
   totalArea: number | null;
   plotArea: number | null;
-  viewFromProperty: string | null;
+  viewFromProperty: string | string[] | null;
   landArea: number | null;
   unit: string | null;
   createdBy: string;
