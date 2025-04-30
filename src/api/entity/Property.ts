@@ -51,8 +51,14 @@ export class Property extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   totalRooms!: number;
 
-  @Column({ type: 'decimal' })
+  @Column({ type: 'int', default: 0 })
   propertyPrice!: number;
+
+  @Column({ type: 'boolean', default: false })
+  isSold!: boolean;
+
+  @Column({ type: 'simple-array', nullable: true }) 
+  conversion!: string[];
 
   @Column({ type: 'float', nullable: true })
   carpetArea!: number;
