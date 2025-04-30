@@ -217,9 +217,9 @@ export const searchProperty = async (req: Request, res: Response) => {
           ...(city && { city }),
         },
       },
-      relations: ['address'],
+      relations: ['address', 'propertyImageKeys'],
     });
-    if (!properties || properties.length === 0) {
+    if (!properties || properties.length === 0){
       throw new ErrorHandler('Property not found', 404);
     }
 
@@ -237,42 +237,46 @@ export const searchProperty = async (req: Request, res: Response) => {
     // Add presigned URLs to property images
     const propertiesWithImages = await Promise.all(
       propertiesWithOwner.map(async (property) => {
-        // Define the type for propertyResponse
         const propertyResponse: PropertyResponseType & { ownerName: string } = {
           ...property,
-          propertyImages: [],
+          propertyImages: []
         };
 
         if (property.imagekeys && property.imagekeys.length > 0) {
-          // Process all image keys in parallel
-          const imageUrls = await Promise.all(
-            property.imagekeys.map(async (imageKey) => {
+          const propertyImages = await Promise.all(
+            property.imagekeys.map(async (imageKey): Promise<PropertyImageWithUrl> => {
               try {
                 const presignedUrl = await generatePresignedUrl(imageKey);
                 return {
                   imageKey,
-                  presignedUrl,
+                  presignedUrl
                 };
               } catch (error) {
                 console.error(`Error generating presigned URL for key ${imageKey}:`, error);
                 return {
                   imageKey,
-                  presignedUrl: '',
+                  presignedUrl: ''
                 };
               }
             })
           );
 
-          propertyResponse.propertyImages = imageUrls;
+          propertyResponse.propertyImages = propertyImages;
         }
-
+        
         return propertyResponse;
       })
     );
 
+    // Calculate total inventory value
+    const inventoryValue = properties.reduce((total, property) => {
+      return total + (property.propertyPrice || 0);
+    }, 0);
+
     return res.status(200).json({
       message: 'Property retrieved successfully',
       property: propertiesWithImages,
+      inventoryValue: inventoryValue.toString()
     });
   } catch (error) {
     throw new ErrorHandler('server error', 500);
