@@ -24,8 +24,11 @@ export class PropertyImages extends BaseEntity {
   @Column({ type: 'varchar', nullable: false })
   presignedUrl!: string;
 
-  @Column ({type:"enum", enum: ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'], default: 'Livingroom'})
+  @Column({ type: "enum", enum: ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'], default: 'Livingroom' })
   imgClassifications!: string;
+
+  @Column({ type: 'int', default: 0 })
+  accurencyPercent!: number;
 
   @Column({ type: 'uuid', nullable: false })
   propertyId!: string;
