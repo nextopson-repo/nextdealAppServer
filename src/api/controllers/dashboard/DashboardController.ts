@@ -1,48 +1,16 @@
 import { SavedProperty } from './../../entity/SavedProperties';
-// Dashboard controller
-
-import { Request, Response, NextFunction, response } from 'express';
+import { Request, Response,  } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { ErrorHandler } from '@/api/middlewares/error';
-import { UserAuth } from '@/api/entity/UserAuth';
-import { Address } from '@/api/entity/Address';
-import { In } from 'typeorm';
 import { PropertyRequirement } from '@/api/entity/PropertyRequirement';
 
 export interface PropertyRequest extends Request {
   body: {
     propertyId?: string;
     userId?: string;
-    addressState?: string;
-    addressCity?: string;
-    addressLocality?: string;
-    imageKeys?: string[];
-    category: string;
-    subCategory: string;
-    projectName?: string;
-    propertyName?: string;
-    totalBathrooms?: number;
-    totalRooms?: number;
-    propertyPrice?: number;
-    carpetArea?: number;
-    buildupArea?: number;
-    bhks?: number;
-    furnishing?: string;
-    constructionStatus?: string;
-    propertyFacing?: string;
-    ageOfTheProperty?: string;
-    reraApproved?: boolean;
-    amenities?: string[];
-    width?: number;
-    height?: number;
-    totalArea?: number;
-    plotArea?: number;
-    viewFromProperty?: string;
-    landArea?: number;
-    unit?: string;
-    isSold ?: boolean;
-    conversion ?: string;
+   isSold?: boolean;
+    conversion?: string;
   };
   user?: {
     id: string;
@@ -56,35 +24,6 @@ export interface PropertyRequest extends Request {
 type PropertyResponseType = {
   id: string;
   userId: string;
-  address: Address;
-  category: string;
-  subCategory: string;
-  projectName: string | null;
-  propertyName: string | null;
-  isSale: boolean | null;
-  totalBathrooms: number | null;
-  totalRooms: number | null;
-  propertyPrice: number;
-  carpetArea: number | null;
-  buildupArea: number | null;
-  bhks: number | null;
-  furnishing: string | null;
-  constructionStatus: string | null;
-  propertyFacing: string | null;
-  ageOfTheProperty: string | null;
-  reraApproved: boolean | null;
-  amenities: string[] | null;
-  width: number | null;
-  height: number | null;
-  totalArea: number | null;
-  plotArea: number | null;
-  viewFromProperty: string | null;
-  landArea: number | null;
-  unit: string | null;
-  createdBy: string;
-  updatedBy: string;
-  createdAt: Date;
-  updatedAt: Date;
   isSold : boolean | null;
   conversion : string | null;
 };
