@@ -1,0 +1,113 @@
+import { Request, Response } from 'express';
+import { AppDataSource } from '@/server';
+import {RepublishProperty } from '@/api/entity/republishedEntity';
+import { Property } from '@/api/entity/Property';
+import { UserAuth } from '@/api/entity/UserAuth';
+
+// Controller: Create Republisher
+export const createRepublisher = async (req: Request, res: Response) => {
+    const { republisherId, ownerId, propertyId } = req.body;
+  
+    try {
+      
+      const republisherRepo = AppDataSource.getRepository(RepublishProperty);
+  
+      const newRepublisher = republisherRepo.create({
+        republisherId,
+        ownerId,
+        propertyId,
+       
+      });
+  
+      const saved = await republisherRepo.save(newRepublisher);
+  
+      return res.status(201).json({
+        success: true,
+        message: 'Republisher created successfully',
+        republisher: saved,
+      });
+    } catch (error) {
+      console.error('Error in createRepublisher:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return res.status(500).json({
+        success: false,
+        message: 'Server error',
+        error: errorMessage,
+      });
+    }
+  };
+
+
+// Controller: Republish Request
+export const republishRequest = async (req: Request, res: Response) => {
+  const { ownerId } = req.body;
+
+  try {
+    const republisherRepo = AppDataSource.getRepository(RepublishProperty);
+    const republisher = await republisherRepo.findOne({
+      where: { ownerId},
+    });
+
+    if (!republisher) {
+      return res.status(404).json({ success: false, message: 'Republisher not found' });
+    }
+//   also send Property details from Property entity
+
+    return res.status(200).json({
+      success: true,
+      message: 'Republisher found',
+      republisher,
+    });
+  } catch (error) {
+    console.error('Error in republishRequest:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ success: false, message: 'Server error', error: errorMessage });
+  }
+};
+
+// Controller: Status Update
+export const statusUpdate = async (req: Request, res: Response) => {
+  const { ownerId, status } = req.body;
+
+  try {
+    const republisherRepo = AppDataSource.getRepository(RepublishProperty);
+    const republisher = await republisherRepo.findOne({ where: { ownerId } });
+
+    if (!republisher) {
+      return res.status(404).json({ success: false, message: 'Republisher not found' });
+    }
+
+    republisher.status = status;
+    const updated = await republisherRepo.save(republisher);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Status updated successfully',
+      republisher: updated,
+    });
+  } catch (error) {
+    console.error('Error in statusUpdate:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ success: false, message: 'Server error', error: errorMessage });
+  }
+};
+
+//  user republish property list
+export const myUserRepublisher = async (req: Request, res: Response) => {
+  const { userId } = req.body;
+
+  try {
+    const republisherRepo = AppDataSource.getRepository(RepublishProperty);
+    const republishers = await republisherRepo.find({ where: { republisherId:userId, status:"Accepted" } });
+    // Also send Property Details with Image 
+    return res.status(200).json({
+      success: true,
+      total: republishers.length,
+      republishers,
+    });
+  } catch (error) {
+    console.error('Error in myUserRepublisher:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ success: false, message: 'Server error', error: errorMessage });
+  }
+};

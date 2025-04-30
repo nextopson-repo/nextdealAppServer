@@ -18,6 +18,12 @@ import { PropertyImages } from "./PropertyImages";
 
 @Entity('Property')
 export class Property extends BaseEntity {
+  views(views: any): string {
+      throw new Error('Method not implemented.');
+  }
+  likes(likes: any): string {
+      throw new Error('Method not implemented.');
+  }
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -52,6 +58,7 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'int', nullable: true })
   totalRooms!: number;
+ 
 
   @Column({ type: 'decimal' })
   propertyPrice!: number;
@@ -70,6 +77,8 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'simple-array', nullable: true })
   addFurnishing!: string[];
+
+  
 
   @Column({ type: 'varchar', nullable: true })
   constructionStatus!: string;
@@ -156,6 +165,13 @@ export class Property extends BaseEntity {
     precision: 6,
   })
   updatedAt!: Date;
+    bhkType: any;
+    city: any;
+    state: any;
+    price: any;
+    imageUrl: any;
+    saleType: any;
+    propertyType: any;
 
   @BeforeInsert()
   async generateUUID() {
