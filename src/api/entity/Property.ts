@@ -13,6 +13,7 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { Address } from "./Address";
+import { PropertyImages } from "./PropertyImages";
 
 
 @Entity('Property')
@@ -27,8 +28,9 @@ export class Property extends BaseEntity {
   @JoinColumn({ name: 'addressId' })
   address!: Address;
 
-  @Column({ type: 'simple-array', nullable: true })
-  imagekeys!: string[];
+  @OneToMany(() => PropertyImages, (propertyImages) => propertyImages.property)
+  @JoinColumn({ name: 'propertyImages' })
+  propertyImages!: PropertyImages[];
 
   @Column({ type: 'varchar', nullable: false })
   category!: string;
@@ -63,8 +65,6 @@ export class Property extends BaseEntity {
   @Column({ type: 'int', nullable: true })
   bhks!: number;
    
-  
-
   @Column({ type: 'varchar', nullable: true })
   furnishing!: string;
 

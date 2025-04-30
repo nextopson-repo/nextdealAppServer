@@ -196,7 +196,7 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
     const newProperty = propertyRepo.create({
       userId,
       address: newAddress,
-      imagekeys,
+      imagekeys: imagekeys ?? [],
       category, // Required field
       subCategory, // Required field
       projectName,
@@ -213,12 +213,12 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       propertyFacing,
       ageOfTheProperty,
       reraApproved,
-      amenities,
+      amenities: amenities ?? [],
       width,
       height,
       totalArea,
       plotArea,
-      viewFromProperty,
+      viewFromProperty: Array.isArray(viewFromProperty) ? viewFromProperty : [viewFromProperty],
       landArea,
       unit,
     });
