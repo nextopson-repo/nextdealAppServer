@@ -1,4 +1,4 @@
-import { analyticProperty } from '@/api/controllers/dashboard/DashboardController';
+import { analyticProperty } from '@/api/controllers/Dashboard/DashboardController';
 import { Router } from 'express';
 
 const router = Router();

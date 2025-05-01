@@ -30,7 +30,7 @@ import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc'; 
 import { RepublishProperty } from './api/entity/republishedEntity';
 
-import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
+import DashboardRoute from "./api/routes/Dashboard/DashboardRoutes"
 import republishRoutes from './api/routes/Dashboard/republishedRoute'; // Ensure this path is correct
 import { PropertyImages } from './api/entity/PropertyImages';
 const logger = pino({ name: 'server start' });
