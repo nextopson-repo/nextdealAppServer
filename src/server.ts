@@ -94,10 +94,11 @@ AppDataSource.initialize()
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
-    app.use("/api/v1/profile",profile)
-app.use("/api/v1/dropdown", DropDownRouter)
- app.use('/api/v1/kyc', kycProcessRoutes);
- app.use('/api/v1/dashboard', republishedRoute);
+    app.use("/api/v1/profile", profile)
+    app.use("/api/v1/dropdown", DropDownRouter)
+    app.use('/api/v1/kyc', kycProcessRoutes);
+    app.use("/api/v1/dashboard", DashboardRoute);
+
     // Error handlers
     app.use(errorHandler());
   })
