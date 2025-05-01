@@ -9,14 +9,38 @@ export const createRepublisher = async (req: Request, res: Response) => {
     const { republisherId, ownerId, propertyId } = req.body;
   
     try {
-      
+      if (!republisherId || !ownerId || !propertyId) {
+        return res.status(400).json({
+          success: false,
+          message: 'All fields are required: republisherId, ownerId, propertyId',
+        });
+      }
+  
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const userRepo = AppDataSource.getRepository(UserAuth);
       const republisherRepo = AppDataSource.getRepository(RepublishProperty);
+  
+      const property = await propertyRepo.findOne({ where: { id: propertyId } });
+      if (!property) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid propertyId — property does not exist',
+        });
+      }
+  
+      const owner = await userRepo.findOne({ where: { id: ownerId } });
+      if (!owner) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid ownerId — owner does not exist',
+        });
+      }
   
       const newRepublisher = republisherRepo.create({
         republisherId,
         ownerId,
         propertyId,
-       
+        status: 'Pending', // default status
       });
   
       const saved = await republisherRepo.save(newRepublisher);
@@ -36,7 +60,6 @@ export const createRepublisher = async (req: Request, res: Response) => {
       });
     }
   };
-
 
 // Controller: Republish Request
 export const republishRequest = async (req: Request, res: Response) => {

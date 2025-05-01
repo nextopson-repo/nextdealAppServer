@@ -95,7 +95,7 @@ AppDataSource.initialize()
     app.use("/api/v1/profile",profile)
 app.use("/api/v1/dropdown", DropDownRouter)
  app.use('/api/v1/kyc', kycProcessRoutes);
- app.use('/api/v1/dashboard', republishedRoute);
+ app.use('/api/v1/republish', republishedRoute);
     // Error handlers
     app.use(errorHandler());
   })
