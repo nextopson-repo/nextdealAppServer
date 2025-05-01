@@ -16,7 +16,6 @@ import authRoutes from './api/routes/auth/AuthRoutes';
 import s3bucket from './api/routes/aws/s3';
 import profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
 import DropDownRouter from './api/routes/dropDown/dropdown';
-import helloRouter from './api/routes/hello/HelloRoutes';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
 import { Address } from './api/entity/Address';
@@ -28,10 +27,12 @@ import { DropdownOptions } from './api/entity/DropdownOptions';
 // Ensure this path is correct
 import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc';
-import { RepublishProperty } from './api/entity/RepublishProperties';
+import { RepublishProperty } from './api/entity/republishedEntity';
+// import { RepublishProperty } from './api/entity/RepublishProperties';
 
 import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
 import { PropertyImages } from './api/entity/PropertyImages';
+import republishedRoute from './api/routes/dashboardRoutes/republishedRoute';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -98,6 +99,7 @@ AppDataSource.initialize()
     app.use("/api/v1/dropdown", DropDownRouter)
     app.use('/api/v1/kyc', kycProcessRoutes);
     app.use("/api/v1/dashboard", DashboardRoute);
+    app.use("/api/v1/republish", republishedRoute);
 
     // Error handlers
     app.use(errorHandler());
