@@ -4,6 +4,7 @@ import {RepublishProperty } from '@/api/entity/republishedEntity';
 import { Property } from '@/api/entity/Property';
 import { UserAuth } from '@/api/entity/UserAuth';
 
+
 // Controller: Create Republisher
 export const createRepublisher = async (req: Request, res: Response) => {
     const { republisherId, ownerId, propertyId } = req.body;
@@ -39,8 +40,7 @@ export const createRepublisher = async (req: Request, res: Response) => {
       const newRepublisher = republisherRepo.create({
         republisherId,
         ownerId,
-        propertyId,
-        status: 'Pending', // default status
+        propertyId
       });
   
       const saved = await republisherRepo.save(newRepublisher);
@@ -121,7 +121,15 @@ export const myUserRepublisher = async (req: Request, res: Response) => {
 
   try {
     const republisherRepo = AppDataSource.getRepository(RepublishProperty);
-    const republishers = await republisherRepo.find({ where: { republisherId:userId, status:"Accepted" } });
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const republishers = await republisherRepo.find({ where: { republisherId: userId, status: "Accepted" } });
+    const property = await propertyRepo.findOne({ where: { userId } });
+    if (!property) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid propertyId — property does not exist',
+      });
+    }
     // Also send Property Details with Image 
     return res.status(200).json({
       success: true,
