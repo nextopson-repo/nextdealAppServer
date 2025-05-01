@@ -1,12 +1,15 @@
 import { GetObjectCommand, GetObjectCommandInput, PutObjectCommand, S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Request, Response } from 'express';
+import nsfwDetectionService from '../../nsfw/nsfwDetectionService';
+import axios from 'axios';
 
 // Define types for better type safety
 interface GenerateUploadUrlRequest {
   key: string;
   contentType: string;
   expDate?: number; // Optional, we'll provide a default
+  imageUrl: string;
 }
 
 interface GenerateUploadUrlResponse {
@@ -16,6 +19,10 @@ interface GenerateUploadUrlResponse {
     url: string;
     key: string;
     expiresIn: number;
+    nsfwDetails?: {
+      label: string;
+      confidence: string;
+    }
   };
 }
 
@@ -41,17 +48,17 @@ const generateUrlForUploading = async (bucketName: string, key: string, expDate:
 
 export const generateUploadUrl = async (req: Request, res: Response<GenerateUploadUrlResponse>) => {
   try {
-    const { key, contentType, expDate = DEFAULT_EXPIRATION } = req.body as GenerateUploadUrlRequest;
+    const { key, contentType, expDate = DEFAULT_EXPIRATION, imageUrl } = req.body as GenerateUploadUrlRequest;
     const bucketName = process.env.AWS_S3_BUCKET;
 
     if (!bucketName) {
       throw new Error('AWS_S3_BUCKET environment variable is not set');
     }
 
-    if (!key || !contentType) {
+    if (!key || !contentType || !imageUrl) {
       return res.status(400).json({
         status: 'error',
-        message: 'Please provide key and contentType.',
+        message: 'Please provide key, contentType, and imageUrl.',
       });
     }
 
@@ -63,17 +70,55 @@ export const generateUploadUrl = async (req: Request, res: Response<GenerateUplo
       });
     }
 
-    const url = await generateUrlForUploading(bucketName, key, expDate, contentType);
-    
-    return res.status(200).json({
-      status: 'success',
-      message: 'Upload URL generated successfully',
-      data: {
-        url,
-        key,
-        expiresIn: expDate,
-      },
-    });
+    // Check if the content type is an image
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Only image files are allowed',
+      });
+    }
+
+    try {
+      // Download the image
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data);
+      // Check for NSFW content
+      const nsfwResult = await nsfwDetectionService.predict(imageBuffer);
+      
+      if (nsfwResult.isAdult) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Image contains inappropriate content',
+          data: {
+            url: '',
+            key,
+            expiresIn: expDate,
+            nsfwDetails: {
+              label: nsfwResult.label,
+              confidence: nsfwResult.confidence
+            }
+          }
+        });
+      }
+
+      const url = await generateUrlForUploading(bucketName, key, expDate, contentType);
+      
+      return res.status(200).json({
+        status: 'success',
+        message: 'Upload URL generated successfully',
+        data: {
+          url,
+          key,
+          expiresIn: expDate,
+        },
+      });
+    } catch (error) {
+      console.error('Error processing image:', error);
+      return res.status(500).json({
+        status: 'error',
+        message: 'Failed to process image for NSFW content',
+      });
+    }
   } catch (error) {
     console.error('Error generating upload URL:', error);
     return res.status(500).json({

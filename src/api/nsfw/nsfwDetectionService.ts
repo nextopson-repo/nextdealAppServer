@@ -1,9 +1,26 @@
 import * as tf from '@tensorflow/tfjs-node';
 import { fileURLToPath } from 'url';
 import { join, dirname, resolve } from 'path';
+import axios from 'axios';
+
+interface NsfwDetectionResult {
+  label: string;
+  confidence: string;
+  isAdult: boolean;
+}
+
+type NsfwClassLabel = 'drawings' | 'hentai' | 'neutral' | 'porn' | 'sexy';
 
 class NsfwDetectionService {
   private model: tf.GraphModel | undefined;
+  private readonly classLabels: Record<string, NsfwClassLabel> = {
+    '0': 'drawings',
+    '1': 'hentai',
+    '2': 'neutral',
+    '3': 'porn',
+    '4': 'sexy'
+  };
+  private readonly adultClasses: NsfwClassLabel[] = ['hentai', 'porn', 'sexy'];
 
   constructor() {
     this.loadModel().catch((error) => console.error('NSFW model loading failed on startup:', error));
@@ -24,7 +41,7 @@ class NsfwDetectionService {
     }
   }
 
-  async predict(imageBuffer: Buffer): Promise<any> {
+  async predict(imageBuffer: Buffer): Promise<NsfwDetectionResult> {
     if (!this.model) {
       await this.loadModel();
       if (!this.model) throw new Error('NSFW model not loaded');
@@ -43,20 +60,29 @@ class NsfwDetectionService {
       tensor.dispose();
       prediction.dispose();
 
-      const classLabels = { '0': 'drawings', '1': 'hentai', '2': 'neutral', '3': 'porn', '4': 'sexy' };
       const classIndex = values.indexOf(Math.max(...values));
-      const predictedClass = classLabels[classIndex.toString()];
-      const adultClasses = ['hentai', 'porn', 'sexy'];
+      const predictedClass = this.classLabels[classIndex.toString()];
       const confidence = (values[classIndex] * 100).toFixed(2) + '%';
 
       return {
         label: predictedClass,
         confidence,
-        isAdult: adultClasses.includes(predictedClass),
+        isAdult: this.adultClasses.includes(predictedClass),
       };
     } catch (error) {
       console.error('NSFW prediction error:', error);
       throw error;
+    }
+  }
+
+  async detectFromUrl(imageUrl: string): Promise<NsfwDetectionResult> {
+    try {
+      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data);
+      return await this.predict(imageBuffer);
+    } catch (error) {
+      console.error('Error fetching or processing image from URL:', error);
+      throw new Error('Failed to process image from URL');
     }
   }
 }

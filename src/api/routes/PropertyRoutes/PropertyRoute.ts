@@ -5,9 +5,8 @@ import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { trendingProperty } from '@/api/controllers/property/PropertyController';
 import{offeringProperty} from '@/api/controllers/property/PropertyController';
-
-
 import { getUserRequirements, requireMents } from '@/api/controllers/property/RequirementsController';
+import { uploadPropertyImages } from '@/api/controllers/property/uploadPropertyImages';
 
 const router = Router();
 
@@ -21,4 +20,5 @@ router.post('/trending-property', trendingProperty);
 router.post('/create-update-requirement', requireMents);
 router.post('/offering-property', offeringProperty)
 router.post("/get-requirements", getUserRequirements)
+router.post("/upload-property-images", uploadPropertyImages)
 export default router;

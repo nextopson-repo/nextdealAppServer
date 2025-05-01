@@ -2,8 +2,14 @@ import * as tf from '@tensorflow/tfjs-node';
 import { fileURLToPath } from 'url';
 import { join, dirname, resolve } from 'path';
 
+interface RoomClassificationResult {
+  label: string;
+  confidence: string;
+}
+
 class ImageClassificationService {
   private roomModel: tf.LayersModel | undefined;
+  private readonly classNames = ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'] as const;
 
   constructor() {
     this.loadModel().catch((error) => console.error('Model loading failed on startup:', error));
@@ -24,7 +30,7 @@ class ImageClassificationService {
     }
   }
 
-  async predictRoom(imageBuffer: Buffer): Promise<any> {
+  async predictRoom(imageBuffer: Buffer): Promise<RoomClassificationResult> {
     if (!this.roomModel) {
       await this.loadModel();
       if (!this.roomModel) throw new Error('Room model not loaded');
@@ -43,10 +49,9 @@ class ImageClassificationService {
       tensor.dispose();
       prediction.dispose();
 
-      const classNames = ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'];
       const maxIndex = values.indexOf(Math.max(...values));
       return {
-        label: classNames[maxIndex],
+        label: this.classNames[maxIndex],
         confidence: (values[maxIndex] * 100).toFixed(2) + '%',
       };
     } catch (error) {

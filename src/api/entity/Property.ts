@@ -14,8 +14,6 @@ import {
 } from "typeorm";
 import { Address } from "./Address";
 import { PropertyImages } from "./PropertyImages";
-
-
 @Entity('Property')
 export class Property extends BaseEntity {
   views(views: any): string {
