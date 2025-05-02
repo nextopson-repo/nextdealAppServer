@@ -67,19 +67,21 @@ export const republishRequest = async (req: Request, res: Response) => {
 
   try {
     const republisherRepo = AppDataSource.getRepository(RepublishProperty);
-    const republisher = await republisherRepo.findOne({
-      where: { ownerId},
-    });
+    const propertyRepo = AppDataSource.getRepository(Property);
+
+    const republisher = await republisherRepo.findOne({ where: { ownerId } });
 
     if (!republisher) {
       return res.status(404).json({ success: false, message: 'Republisher not found' });
     }
-//   also send Property details from Property entity
+
+    const property = await propertyRepo.findOne({ where: { id: republisher.propertyId } });
 
     return res.status(200).json({
       success: true,
       message: 'Republisher found',
       republisher,
+      property,
     });
   } catch (error) {
     console.error('Error in republishRequest:', error);
@@ -88,12 +90,15 @@ export const republishRequest = async (req: Request, res: Response) => {
   }
 };
 
+
 // Controller: Status Update
 export const statusUpdate = async (req: Request, res: Response) => {
-  const { ownerId, status } = req.body;
+  const { ownerId ,status} = req.body;
 
   try {
     const republisherRepo = AppDataSource.getRepository(RepublishProperty);
+    const propertyRepo = AppDataSource.getRepository(Property);
+
     const republisher = await republisherRepo.findOne({ where: { ownerId } });
 
     if (!republisher) {
@@ -102,11 +107,13 @@ export const statusUpdate = async (req: Request, res: Response) => {
 
     republisher.status = status;
     const updated = await republisherRepo.save(republisher);
+    const property = await propertyRepo.findOne({ where: { id: updated.propertyId } });
 
     return res.status(200).json({
       success: true,
       message: 'Status updated successfully',
       republisher: updated,
+      property,
     });
   } catch (error) {
     console.error('Error in statusUpdate:', error);
@@ -115,6 +122,8 @@ export const statusUpdate = async (req: Request, res: Response) => {
   }
 };
 
+
+
 //  user republish property list
 export const myUserRepublisher = async (req: Request, res: Response) => {
   const { userId } = req.body;
@@ -122,19 +131,22 @@ export const myUserRepublisher = async (req: Request, res: Response) => {
   try {
     const republisherRepo = AppDataSource.getRepository(RepublishProperty);
     const propertyRepo = AppDataSource.getRepository(Property);
-    const republishers = await republisherRepo.find({ where: { republisherId: userId, status: "Accepted" } });
-    const property = await propertyRepo.findOne({ where: { userId } });
-    if (!property) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid propertyId — property does not exist',
-      });
-    }
-    // Also send Property Details with Image 
+
+    const republishers = await republisherRepo.find({
+      where: { republisherId: userId, status: "Accepted" }
+    });
+
+    const property = await Promise.all(
+      republishers.map(async (rep) => {
+        return await propertyRepo.findOne({ where: { id: rep.propertyId } });
+      })
+    );
+
     return res.status(200).json({
       success: true,
       total: republishers.length,
       republishers,
+      property
     });
   } catch (error) {
     console.error('Error in myUserRepublisher:', error);
