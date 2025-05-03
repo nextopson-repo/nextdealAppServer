@@ -13,10 +13,15 @@ import {
   UpdateDateColumn,
 } from "typeorm";
 import { Address } from "./Address";
-
-
+import { PropertyImages } from "./PropertyImages";
 @Entity('Property')
 export class Property extends BaseEntity {
+  views(views: any): string {
+      throw new Error('Method not implemented.');
+  }
+  likes(likes: any): string {
+      throw new Error('Method not implemented.');
+  }
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -27,8 +32,9 @@ export class Property extends BaseEntity {
   @JoinColumn({ name: 'addressId' })
   address!: Address;
 
-  @Column({ type: 'simple-array', nullable: true })
-  imagekeys!: string[];
+  @OneToMany(() => PropertyImages, (propertyImages) => propertyImages.property)
+  @JoinColumn({ name: 'propertyImages' })
+  propertyImages!: PropertyImages[];
 
   @Column({ type: 'varchar', nullable: false })
   category!: string;
@@ -50,6 +56,7 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'int', nullable: true })
   totalRooms!: number;
+ 
 
   @Column({ type: 'int', default: 0 })
   propertyPrice!: number;
@@ -68,9 +75,14 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'int', nullable: true })
   bhks!: number;
-
+   
   @Column({ type: 'varchar', nullable: true })
   furnishing!: string;
+
+  @Column({ type: 'simple-array', nullable: true })
+  addFurnishing!: string[];
+
+  
 
   @Column({ type: 'varchar', nullable: true })
   constructionStatus!: string;
@@ -94,19 +106,52 @@ export class Property extends BaseEntity {
   height!: number;
 
   @Column({ type: 'float', nullable: true })
+  length!: number;
+
+  @Column({ type: 'float', nullable: true })
   totalArea!: number;
 
   @Column({ type: 'float', nullable: true })
   plotArea!: number;
 
-  @Column({ type: 'varchar', nullable: true })
-  viewFromProperty!: string;
+  @Column({ type: 'simple-array', nullable: true })
+  viewFromProperty!: string[];
 
   @Column({ type: 'float', nullable: true })
   landArea!: number;
 
+  @Column({ type: 'float', nullable: true })
+  distFromOutRRoad!: number;
+
   @Column({ type: 'varchar', nullable: true })
   unit!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  soilType!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  approachRoad!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  totalfloors!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  officefloor!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  yourfloor!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  cabins!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  parking!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  washroom!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  availablefor!: string;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
@@ -124,6 +169,13 @@ export class Property extends BaseEntity {
     precision: 6,
   })
   updatedAt!: Date;
+    bhkType: any;
+    city: any;
+    state: any;
+    price: any;
+    imageUrl: any;
+    saleType: any;
+    propertyType: any;
 
   @BeforeInsert()
   async generateUUID() {
