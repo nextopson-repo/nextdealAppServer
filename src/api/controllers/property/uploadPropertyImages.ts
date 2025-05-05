@@ -1,5 +1,8 @@
+import { Property } from '@/api/entity/Property';
+import { PropertyImages } from '@/api/entity/PropertyImages';
 import imageClassificationService from '@/api/imageClassification/imageClassificationService';
 import nsfwDetectionService from '@/api/nsfw/nsfwDetectionService';
+import { AppDataSource } from '@/server';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Request, Response } from 'express';
@@ -13,6 +16,8 @@ interface GenerateUploadUrlRequest {
   key: string;
   contentType: string;
   expDate?: number; // Optional, we'll provide a default
+  propertyId: string;
+  forClassify?: boolean;
 }
 
 interface GenerateUploadUrlResponse {
@@ -53,18 +58,27 @@ export const uploadPropertyImagesController = async (req: Request, res: Response
   try {
     // Check if file exists in the request
     if (!req.file) {
-      return res.status(400).json({
+      return res.status(400).json({ 
         status: 'error',
         message: 'No file uploaded.',
       });
     }
 
-    const { key, contentType, expDate = DEFAULT_EXPIRATION } = req.body as GenerateUploadUrlRequest;
+    const { key, contentType, expDate = DEFAULT_EXPIRATION, propertyId, forClassify } = req.body as GenerateUploadUrlRequest;
     const bucketName = process.env.AWS_S3_BUCKET;
     const imageBuffer = req.file.buffer;
 
     if (!bucketName) {
       throw new Error('AWS_S3_BUCKET environment variable is not set');
+    }
+
+    const propertyRepo = AppDataSource.getRepository(Property)
+    const property = await propertyRepo.findOne({ where: { id: propertyId } })
+    if (!property) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Property not found',
+      });
     }
 
     if (!key || !contentType) {
@@ -91,21 +105,34 @@ export const uploadPropertyImagesController = async (req: Request, res: Response
       });
     }
 
+    const propertyImageRepo = AppDataSource.getRepository(PropertyImages)
+
     // Generate upload URL
     const url = await generateUrlForUploading(bucketName, key, expDate, contentType);
 
     // Classify the image
     const classificationResult = await imageClassificationService.predictRoom(imageBuffer);
-    
+
+    // Save the image to the database
+    const propertyImage = new PropertyImages();
+    propertyImage.presignedUrl = url;
+    propertyImage.imageKey = key;
+    propertyImage.propertyId = propertyId;
+    if (forClassify) {
+      propertyImage.imgClassifications = classificationResult.label;
+      propertyImage.accurencyPercent = Number(classificationResult.confidence);
+    }
+    const image = await propertyImageRepo.save(propertyImage);
+
     return res.status(200).json({
       status: 'success',
       message: 'Image processed successfully',
       data: {
         url,
         key,
-        imgClassifications: classificationResult.label,
-        accurencyPercent: classificationResult.confidence,
-        expiresIn: expDate,
+        imgClassifications: image.imgClassifications,
+        accurencyPercent: image.accurencyPercent.toString(),
+        expiresIn: expDate
       },
     });
   } catch (error) {
