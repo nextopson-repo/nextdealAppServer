@@ -5,6 +5,7 @@ import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { trendingProperty } from '@/api/controllers/property/PropertyController';
 import{offeringProperty} from '@/api/controllers/property/PropertyController';
+import { getUserProperties } from '@/api/controllers/property/PropertyController';
 
 
 import { getUserRequirements, requireMents } from '@/api/controllers/property/RequirementsController';
@@ -21,4 +22,5 @@ router.post('/trending-property', trendingProperty);
 router.post('/create-update-requirement', requireMents);
 router.post('/offering-property', offeringProperty)
 router.post("/get-requirements", getUserRequirements)
+router.post('/get-user-properties', getUserProperties);
 export default router;

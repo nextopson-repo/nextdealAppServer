@@ -1,3 +1,4 @@
+import { PropertyImages } from '@/api/entity/PropertyImages';
 import { SavedProperty } from './../../entity/SavedProperties';
 // Dashboard controller
 
@@ -41,8 +42,8 @@ export interface PropertyRequest extends Request {
     viewFromProperty?: string;
     landArea?: number;
     unit?: string;
-    isSold ?: boolean;
-    conversion ?: string;
+    isSold?: boolean;
+    conversion?: string;
   };
   user?: {
     id: string;
@@ -85,49 +86,47 @@ type PropertyResponseType = {
   updatedBy: string;
   createdAt: Date;
   updatedAt: Date;
-  isSold : boolean | null;
-  conversion : string | null;
+  isSold: boolean | null;
+  conversion: string | null;
 };
-
-
 
 export const analyticProperty = async (req: PropertyRequest, res: Response) => {
   try {
-    const { userId} = req.body;
+    const { userId } = req.body;
     if (!userId) {
       throw new ErrorHandler('User ID is required', 400);
     }
     const propertyRepo = AppDataSource.getRepository(Property);
     const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
     const SavedPropertyRepo = AppDataSource.getRepository(SavedProperty);
-  
-   const property = await propertyRepo.find({
+
+    const property = await propertyRepo.find({
       where: { userId },
     });
- const requirement = await requirementRepo.find({
+    const requirement = await requirementRepo.find({
       where: { userId },
     });
- const savedProperties = await SavedPropertyRepo.find({
-      where: { ownerId : userId },
+    const savedProperties = await SavedPropertyRepo.find({
+      where: { ownerId: userId },
     });
 
-let inventoryValue = 0;
-     for (let i = 0; i < property.length; i++) {
+    let inventoryValue = 0;
+    for (let i = 0; i < property.length; i++) {
       inventoryValue += property[i].propertyPrice;
     }
-    let soldInventoryValue = 0; 
+    let soldInventoryValue = 0;
     for (let i = 0; i < property.length; i++) {
       if (property[i].isSold) {
         soldInventoryValue += property[i].propertyPrice;
       }
     }
- let totalConversions = 0;
+    let totalConversions = 0;
     for (let i = 0; i < property.length; i++) {
       if (property[i].conversion) {
         totalConversions += property[i].conversion.length;
       }
     }
-const result = {
+    const result = {
       propertyCount: property.length > 0 ? property.length : 0,
       requirementCount: requirement.length > 0 ? requirement.length : 0,
       inventoryValue: inventoryValue > 0 ? inventoryValue : 0,
@@ -144,3 +143,66 @@ const result = {
   }
 };
 
+// create saved property
+export const createSavedProperty = async (req: Request, res: Response) => {
+  try {
+    const { propertyId, ownerId, userId } = req.body;
+    if (!propertyId || !ownerId || !userId) {
+      return res.status(400).json({ message: 'Please provide all required fields' });
+    }
+    const savedPropertyRepo = AppDataSource.getRepository(SavedProperty);
+    const savedProperty = savedPropertyRepo.create({
+      propertyId,
+      ownerId,
+      userId,
+    });
+    const newProperty = await savedPropertyRepo.save(savedProperty);
+    return res.status(201).json({ message: 'Saved property created successfully', newProperty });
+  } catch (error: any) {
+    res.status(500).json({ message: error });
+  }
+};
+
+// saved property
+
+export const getSavedProperties = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const savedPropertyRepo = AppDataSource.getRepository(SavedProperty);
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+
+    const user = await userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    const savedProperties = await savedPropertyRepo.find({
+      where: { ownerId: userId },
+    });
+
+    if (!savedProperties.length) {
+      return res.status(404).json({ message: 'No saved properties found' });
+    }
+    const propertyIds = savedProperties.map((sp) => sp.propertyId);
+    const properties = await propertyRepo.find({
+      where: { id: In(propertyIds) },
+      relations: ['propertyImage', 'address'],
+    });
+    const savedPropertiesResult = properties.map((property) => ({
+      ...property,
+      user,
+    }));
+    return res.status(200).json({
+      message: 'Saved properties retrieved successfully',
+      savedProperties: savedPropertiesResult,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Internal server error' });
+  }
+};

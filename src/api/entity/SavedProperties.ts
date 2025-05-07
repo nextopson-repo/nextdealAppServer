@@ -41,6 +41,7 @@ import { randomBytes } from 'crypto';
       precision: 6,
     })
     updatedAt!: Date;
+    property: any;
 
     @BeforeInsert()
     async generateUUID() {
