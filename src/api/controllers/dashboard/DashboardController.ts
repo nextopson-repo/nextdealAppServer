@@ -177,30 +177,83 @@ export const getSavedProperties = async (req: Request, res: Response) => {
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
 
-    const user = await userRepo.findOne({ where: { id: userId } });
+    const user = await userRepo.findOne({
+      where: { id: userId },
+    });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
     const savedProperties = await savedPropertyRepo.find({
-      where: { ownerId: userId },
+      where: { userId },
     });
 
-    if (!savedProperties.length) {
+    if (!savedProperties) {
       return res.status(404).json({ message: 'No saved properties found' });
     }
-    const propertyIds = savedProperties.map((sp) => sp.propertyId);
-    const properties = await propertyRepo.find({
-      where: { id: In(propertyIds) },
-      relations: ['propertyImage', 'address'],
-    });
-    const savedPropertiesResult = properties.map((property) => ({
-      ...property,
-      user,
-    }));
+    const property = savedProperties.map(
+      async (sp) =>
+        await propertyRepo.find({
+          where: { id: sp.id },
+          relations: ['propertyImage', 'address'],
+        })
+    );
+
+    const result = [...property, user];
+
     return res.status(200).json({
       message: 'Saved properties retrieved successfully',
+      result,
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Internal server error' });
+  }
+};
+
+//get requirement enquiries
+
+export const getRequirementEnquiries = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const requirementEnquiryRepo = AppDataSource.getRepository(PropertyRequirement);
+    const savedPropertyRepo = AppDataSource.getRepository(SavedProperty);
+    // const propertyRepo = AppDataSource.getRepository(Property);
+
+    const user = await userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const requirementEnquiries = await requirementEnquiryRepo.find({
+      where: { userId },
+    });
+    const savedProperties = await savedPropertyRepo.find({
+      where: { userId },
+      relations: ['property', 'property.propertyImage', 'property.address'],
+    });
+    if (!requirementEnquiries.length) {
+      return res.status(404).json({ message: 'No requirement enquiries found' });
+    }
+    const savedPropertiesResult = savedProperties.map((savedProperty) => ({
+      ...savedProperty,
+      property: {
+        ...savedProperty.property,
+        propertyImage: savedProperty.property.propertyImage[0],
+        address: savedProperty.property.address,
+      },
+    }));
+    const result = {
+      requirementEnquiries,
       savedProperties: savedPropertiesResult,
+    };
+    return res.status(200).json({
+      message: 'Requirement enquiries retrieved successfully',
+      result,
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Internal server error' });

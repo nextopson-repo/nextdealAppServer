@@ -14,19 +14,19 @@ import { UserAuth } from './api/entity';
 import authRoutes from './api/routes/auth/AuthRoutes';
 import s3bucket from './api/routes/aws/s3';
 import profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
-import DropDownRouter from './api/routes/dropDown/dropdown'
-import helloRouter from './api/routes/hello/HelloRoutes';
+import DropDownRouter from './api/routes/dropDown/dropdown';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
 import { Address } from './api/entity/Address';
 import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
 import { RepublishProperty } from './api/entity/RepublishProperties';
-import property from './api/routes/PropertyRoutes/PropertyRoute'; 
+import property from './api/routes/PropertyRoutes/PropertyRoute';
 import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
-import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
+import DashboardRoute from './api/routes/dashboardRoutes/DashboardRoutes';
 import { PropertyImages } from './api/entity/PropertyImages';
+import { PropertyEnquiry } from './api/entity/PropertyEnquiry';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -38,9 +38,20 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address,UserCredibility,SavedProperty,RepublishProperty, PropertyRequirement, DropdownOptions, PropertyImages],
-  synchronize: true, 
-  logging: false, 
+  entities: [
+    UserAuth,
+    Property,
+    Address,
+    UserCredibility,
+    SavedProperty,
+    RepublishProperty,
+    PropertyRequirement,
+    DropdownOptions,
+    PropertyImages,
+    PropertyEnquiry,
+  ],
+  synchronize: false,
+  logging: false,
   entitySkipConstructor: true,
 };
 
@@ -85,14 +96,14 @@ AppDataSource.initialize()
     app.use(requestLogger);
 
     // Routes mounting
-    // app.use('/', (_: Request, res: Response) => {res.status(200).send('<h1>Hello from NextDeal</h1>')});    
+    // app.use('/', (_: Request, res: Response) => {res.status(200).send('<h1>Hello from NextDeal</h1>')});
     app.use('/api/v1/auth', authRoutes);
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
-    app.use("/api/v1/profile",profile);
-app.use("/api/v1/dropdown", DropDownRouter);
-app.use("/api/v1/dashboard" ,DashboardRoute);
-  
+    app.use('/api/v1/profile', profile);
+    app.use('/api/v1/dropdown', DropDownRouter);
+    app.use('/api/v1/dashboard', DashboardRoute);
+
     // Error handlers
     app.use(errorHandler());
   })
@@ -102,4 +113,3 @@ app.use("/api/v1/dashboard" ,DashboardRoute);
   });
 
 export { app, AppDataSource, logger };
-
