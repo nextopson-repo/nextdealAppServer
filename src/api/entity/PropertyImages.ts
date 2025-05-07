@@ -24,13 +24,13 @@ export class PropertyImages extends BaseEntity {
   @Column({ type: 'varchar', nullable: false })
   presignedUrl!: string;
 
-  @Column({ type: "enum", enum: ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'], default: 'Livingroom' })
+  @Column({ type: "enum", enum: ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'], default: null })
   imgClassifications!: string;
 
-  @Column({ type: 'int', default: 0 })
+  @Column({ type: 'int', default: null })
   accurencyPercent!: number;
 
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ type: 'uuid', nullable: true })
   propertyId!: string;
 
   @ManyToOne(() => Property, (property) => property.propertyImages)
