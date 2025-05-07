@@ -6,9 +6,11 @@ import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { trendingProperty } from '@/api/controllers/property/PropertyController';
 import{offeringProperty} from '@/api/controllers/property/PropertyController';
 import { getUserRequirements, requireMents } from '@/api/controllers/property/RequirementsController';
-import { uploadPropertyImages } from '@/api/controllers/property/uploadPropertyImages';
+import {  uploadPropertyImagesController } from '@/api/controllers/property/uploadPropertyImages';
+import multer from 'multer';
 
 const router = Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Apply authentication middleware to all property routes
 // router.use(authenticate);
@@ -20,5 +22,9 @@ router.post('/trending-property', trendingProperty);
 router.post('/create-update-requirement', requireMents);
 router.post('/offering-property', offeringProperty)
 router.post("/get-requirements", getUserRequirements)
-router.post("/upload-property-images", uploadPropertyImages)
+router.post(
+  "/upload-property-images",
+  upload.single('file'),
+  uploadPropertyImagesController
+);
 export default router;

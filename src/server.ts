@@ -33,6 +33,7 @@ import { RepublishProperty } from './api/entity/republishedEntity';
 import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
 import { PropertyImages } from './api/entity/PropertyImages';
 import republishedRoute from './api/routes/dashboardRoutes/republishedRoute';
+import { Location } from './api/entity/Location';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -44,7 +45,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages],
+  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages, Location],
   synchronize: true,
   logging: false,
   entitySkipConstructor: true,

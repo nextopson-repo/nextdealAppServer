@@ -3,9 +3,23 @@ import express, { Request, Response } from 'express';
 import { getRepository } from 'typeorm';
 import { DropdownOptions } from '@/api/entity/DropdownOptions';
 import { AppDataSource } from '@/server';
-
+import { Location } from '@/api/entity/Location';
 const app = express();
 app.use(express.json());
+
+
+export const uploadLocationDropdown = async (_req: Request, res: Response) => {
+  try {
+    const dropdownRepo = AppDataSource.getRepository(Location);
+    const options = await dropdownRepo.find({
+      order: { id: 'ASC' }
+    });
+    res.status(200).json(options);
+  } catch (error) {
+    res.status(500).json({ message: 'Error retrieving location options', error });
+  }
+};
+
 
 export const uploadPropertyDropdown = async (_req: Request, res: Response) => {
   try {
@@ -17,6 +31,7 @@ export const uploadPropertyDropdown = async (_req: Request, res: Response) => {
         'propertyType',
         'state',
         'city',
+        'locality',
         'furnishing',
         'propertyFacing',
         'viewsOfProperty',

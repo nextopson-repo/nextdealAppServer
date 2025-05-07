@@ -30,7 +30,7 @@ export class PropertyImages extends BaseEntity {
   @Column({ type: 'int', default: null })
   accurencyPercent!: number;
 
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ type: 'uuid', nullable: true })
   propertyId!: string;
 
   @ManyToOne(() => Property, (property) => property.propertyImages)
