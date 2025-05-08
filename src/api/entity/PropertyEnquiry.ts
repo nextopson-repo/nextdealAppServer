@@ -29,21 +29,7 @@ export class PropertyEnquiry extends BaseEntity {
   @Column({ type: 'uuid', nullable: true })
   ownerId!: string;
 
-  @OneToMany(() => PropertyImages, (propertyImages) => propertyImages.property)
-  @JoinColumn({ name: 'propertyImages' })
-  propertyImages!: PropertyImages[];
-
-  @ManyToOne(() => Address)
-  @JoinColumn({ name: 'addressId' })
-  address!: Address;
-
-  @Column({ type: 'varchar', nullable: false })
-  category!: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  subCategory!: string;
-
-  @Column({ type: 'varchar', default: 'system' })
+ @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
 
   @Column({ type: 'varchar', default: 'system' })
