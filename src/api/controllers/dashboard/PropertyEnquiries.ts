@@ -90,3 +90,4 @@ export const getAllPropertyEnquiries = async (req: Request, res: Response) =>
     }
   };
 
+
