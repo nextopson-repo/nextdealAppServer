@@ -52,41 +52,41 @@ export interface PropertyRequest extends Request {
   };
 }
 
-// type PropertyResponseType = {
-//   id: string;
-//   userId: string;
-//   address: Address;
-//   category: string;
-//   subCategory: string;
-//   projectName: string | null;
-//   propertyName: string | null;
-//   isSale: boolean | null;
-//   totalBathrooms: number | null;
-//   totalRooms: number | null;
-//   propertyPrice: number;
-//   carpetArea: number | null;
-//   buildupArea: number | null;
-//   bhks: number | null;
-//   furnishing: string | null;
-//   constructionStatus: string | null;
-//   propertyFacing: string | null;
-//   ageOfTheProperty: string | null;
-//   reraApproved: boolean | null;
-//   amenities: string[] | null;
-//   width: number | null;
-//   height: number | null;
-//   totalArea: number | null;
-//   plotArea: number | null;
-//   viewFromProperty: string | null;
-//   landArea: number | null;
-//   unit: string | null;
-//   createdBy: string;
-//   updatedBy: string;
-//   createdAt: Date;
-//   updatedAt: Date;
-//   isSold: boolean | null;
-//   conversion: string | null;
-// };
+type PropertyResponseType = {
+  id: string;
+  userId: string;
+  address: Address;
+  category: string;
+  subCategory: string;
+  projectName: string | null;
+  propertyName: string | null;
+  isSale: boolean | null;
+  totalBathrooms: number | null;
+  totalRooms: number | null;
+  propertyPrice: number;
+  carpetArea: number | null;
+  buildupArea: number | null;
+  bhks: number | null;
+  furnishing: string | null;
+  constructionStatus: string | null;
+  propertyFacing: string | null;
+  ageOfTheProperty: string | null;
+  reraApproved: boolean | null;
+  amenities: string[] | null;
+  width: number | null;
+  height: number | null;
+  totalArea: number | null;
+  plotArea: number | null;
+  viewFromProperty: string | null;
+  landArea: number | null;
+  unit: string | null;
+  createdBy: string;
+  updatedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  isSold: boolean | null;
+  conversion: string | null;
+};
 
 export const analyticProperty = async (req: PropertyRequest, res: Response) => {
   try {
