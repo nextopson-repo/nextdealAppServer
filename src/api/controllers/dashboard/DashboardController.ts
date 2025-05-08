@@ -1,15 +1,11 @@
 import { PropertyImages } from '@/api/entity/PropertyImages';
 import { SavedProperty } from './../../entity/SavedProperties';
-// Dashboard controller
-
-import { Request, Response, NextFunction, response } from 'express';
+import { Request, Response } from 'express';
 import { AppDataSource } from '@/server';
 import { Property } from '@/api/entity/Property';
 import { ErrorHandler } from '@/api/middlewares/error';
-import { UserAuth } from '@/api/entity/UserAuth';
-import { Address } from '@/api/entity/Address';
-import { In } from 'typeorm';
 import { PropertyRequirement } from '@/api/entity/PropertyRequirement';
+import { UserAuth } from '@/api/entity';
 
 export interface PropertyRequest extends Request {
   body: {
@@ -51,44 +47,46 @@ export interface PropertyRequest extends Request {
     email: string;
     mobileNumber: string;
     isAdmin?: boolean;
+    isSold?: boolean;
+    conversion?: string;
   };
 }
 
-type PropertyResponseType = {
-  id: string;
-  userId: string;
-  address: Address;
-  category: string;
-  subCategory: string;
-  projectName: string | null;
-  propertyName: string | null;
-  isSale: boolean | null;
-  totalBathrooms: number | null;
-  totalRooms: number | null;
-  propertyPrice: number;
-  carpetArea: number | null;
-  buildupArea: number | null;
-  bhks: number | null;
-  furnishing: string | null;
-  constructionStatus: string | null;
-  propertyFacing: string | null;
-  ageOfTheProperty: string | null;
-  reraApproved: boolean | null;
-  amenities: string[] | null;
-  width: number | null;
-  height: number | null;
-  totalArea: number | null;
-  plotArea: number | null;
-  viewFromProperty: string | null;
-  landArea: number | null;
-  unit: string | null;
-  createdBy: string;
-  updatedBy: string;
-  createdAt: Date;
-  updatedAt: Date;
-  isSold: boolean | null;
-  conversion: string | null;
-};
+// type PropertyResponseType = {
+//   id: string;
+//   userId: string;
+//   address: Address;
+//   category: string;
+//   subCategory: string;
+//   projectName: string | null;
+//   propertyName: string | null;
+//   isSale: boolean | null;
+//   totalBathrooms: number | null;
+//   totalRooms: number | null;
+//   propertyPrice: number;
+//   carpetArea: number | null;
+//   buildupArea: number | null;
+//   bhks: number | null;
+//   furnishing: string | null;
+//   constructionStatus: string | null;
+//   propertyFacing: string | null;
+//   ageOfTheProperty: string | null;
+//   reraApproved: boolean | null;
+//   amenities: string[] | null;
+//   width: number | null;
+//   height: number | null;
+//   totalArea: number | null;
+//   plotArea: number | null;
+//   viewFromProperty: string | null;
+//   landArea: number | null;
+//   unit: string | null;
+//   createdBy: string;
+//   updatedBy: string;
+//   createdAt: Date;
+//   updatedAt: Date;
+//   isSold: boolean | null;
+//   conversion: string | null;
+// };
 
 export const analyticProperty = async (req: PropertyRequest, res: Response) => {
   try {

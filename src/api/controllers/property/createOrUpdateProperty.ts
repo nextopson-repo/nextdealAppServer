@@ -152,7 +152,9 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       if (height) propertyUpdateData.height = height;
       if (totalArea) propertyUpdateData.totalArea = totalArea;
       if (plotArea) propertyUpdateData.plotArea = plotArea;
-      if (viewFromProperty) propertyUpdateData.viewFromProperty = viewFromProperty;
+      if (viewFromProperty) {
+        propertyUpdateData.viewFromProperty = Array.isArray(viewFromProperty) ? viewFromProperty : [viewFromProperty];
+      }
       if (landArea) propertyUpdateData.landArea = landArea;
       if (unit) propertyUpdateData.unit = unit;
       if (imagekeys) propertyUpdateData.imagekeys = imagekeys;
@@ -194,7 +196,7 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
     const newProperty = propertyRepo.create({
       userId,
       address: newAddress,
-      imagekeys,
+      imagekeys: imagekeys ?? [],
       category, // Required field
       subCategory, // Required field
       projectName,
@@ -211,12 +213,12 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       propertyFacing,
       ageOfTheProperty,
       reraApproved,
-      amenities,
+      amenities: amenities ?? [],
       width,
       height,
       totalArea,
       plotArea,
-      viewFromProperty,
+      viewFromProperty: Array.isArray(viewFromProperty) ? viewFromProperty : [viewFromProperty],
       landArea,
       unit,
     });
