@@ -2,7 +2,9 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '@/server';
 import {RepublishProperty } from '@/api/entity/republishedEntity';
 import { Property } from '@/api/entity/Property';
+import { PropertyImages } from '@/api/entity/PropertyImages';
 import { UserAuth } from '@/api/entity/UserAuth';
+import { ErrorHandler } from '@/api/middlewares/error';
 
 
 // Controller: Create Republisher
@@ -93,13 +95,13 @@ export const republishRequest = async (req: Request, res: Response) => {
 
 // Controller: Status Update
 export const statusUpdate = async (req: Request, res: Response) => {
-  const { ownerId ,status} = req.body;
+  const { propertyId ,status} = req.body;
 
   try {
     const republisherRepo = AppDataSource.getRepository(RepublishProperty);
     const propertyRepo = AppDataSource.getRepository(Property);
 
-    const republisher = await republisherRepo.findOne({ where: { ownerId } });
+    const republisher = await republisherRepo.findOne({ where: { propertyId } });
 
     if (!republisher) {
       return res.status(404).json({ success: false, message: 'Republisher not found' });
@@ -123,30 +125,31 @@ export const statusUpdate = async (req: Request, res: Response) => {
 };
 
 
-
-//  user republish property list
 export const myUserRepublisher = async (req: Request, res: Response) => {
-  const { userId } = req.body;
+  const { propertyId } = req.body;
 
   try {
-    const republisherRepo = AppDataSource.getRepository(RepublishProperty);
     const propertyRepo = AppDataSource.getRepository(Property);
+    const imageRepo = AppDataSource.getRepository(PropertyImages);
 
-    const republishers = await republisherRepo.find({
-      where: { republisherId: userId, status: "Accepted" }
+    const property = await propertyRepo.findOne({
+      where: { id: propertyId },
+      relations: ['address', 'propertyImages']
     });
 
-    const property = await Promise.all(
-      republishers.map(async (rep) => {
-        return await propertyRepo.findOne({ where: { id: rep.propertyId } });
-      })
-    );
+    if (!property) {
+      return res.status(404).json({ success: false, message: 'Property not found' });
+    }
 
-    return res.status(200).json({
+    const images = await imageRepo.find({
+      where: { propertyId }
+    });
+
+    res.status(200).json({
       success: true,
-      total: republishers.length,
-      republishers,
-      property
+      message: 'User republisher property list',
+      property,
+      images
     });
   } catch (error) {
     console.error('Error in myUserRepublisher:', error);
