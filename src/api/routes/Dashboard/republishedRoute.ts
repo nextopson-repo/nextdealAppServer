@@ -4,7 +4,7 @@ import {
   republishRequest,
   statusUpdate,
   myUserRepublisher,
-} from '@/api/controllers/Dashboard/RepublishedController';
+} from '@/api/controllers/dashboard/RepublishedController';
 
 const router = express.Router();
 
