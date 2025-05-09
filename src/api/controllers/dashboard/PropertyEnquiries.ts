@@ -1,9 +1,9 @@
-
-import { PropertyEnquiry } from './../../entity/PropertyEnquiry';
 import { Request, Response } from 'express';
 import { AppDataSource } from '@/server';
 import { ErrorHandler } from '@/api/middlewares/error';
 import { Property } from '@/api/entity/Property';
+import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
+import { Address } from '@/api/entity/Address';
 
 export interface PropertyRequest extends Request {
   body: {
@@ -37,9 +37,9 @@ type PropertyResponseType = {
 
 export const createPropertyEnquiry = async (req: Request, res: Response) => {
   try {
-    const { propertyId, userId} = req.body;
+    const { propertyId, userId } = req.body;
 
-    if (!propertyId || !userId ) {
+    if (!propertyId || !userId) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
@@ -53,17 +53,16 @@ export const createPropertyEnquiry = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Property not found' });
     }
 
-    if(propertyDetails.userId === userId) {
+    if (propertyDetails.userId === userId) {
       return res.status(403).json({ message: 'You cannot create an enquiry for your own property' });
     }
     const propertyEnquiry = propertyEnquiryRepo.create({
       propertyId,
       userId,
-      ownerId:propertyDetails.userId,
-    
+      ownerId: propertyDetails.userId,
     });
-const newPropertyEnquiry = await propertyEnquiryRepo.save(propertyEnquiry);
-res.status(201).json({
+    const newPropertyEnquiry = await propertyEnquiryRepo.save(propertyEnquiry);
+    res.status(201).json({
       message: 'Property enquiry created successfully',
       enquiry: newPropertyEnquiry,
       propertyDetails,
@@ -75,19 +74,27 @@ res.status(201).json({
 };
 
 
-
 // Get all property enquiries for a user
-export const getAllPropertyEnquiries = async (req: Request, res: Response) =>
-  {
-    try {
-      const { userId } = req.body;
-      const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
-      const propertyEnquiries = await propertyEnquiryRepo.find({ where: { userId } });
-      res.status(200).json({ message: 'Property enquiries retrieved successfully', propertyEnquiries });
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error retrieving property enquiries' });
-    }
-  };
 
+export const getAllPropertyEnquiries = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+    const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
+    const propertyEnquiries = await propertyEnquiryRepo.find({
+      where: { userId },
+      relations: ['property', 'property.address', 'property.propertyImages'],
+    });
+    return res.status(200).json({
+      message: 'Property enquiries retrieved successfully',
+      propertyEnquiries,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Error retrieving property enquiries' });
+  }
+};
 
