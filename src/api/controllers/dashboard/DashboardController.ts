@@ -6,6 +6,8 @@ import { Property } from '@/api/entity/Property';
 import { ErrorHandler } from '@/api/middlewares/error';
 import { PropertyRequirement } from '@/api/entity/PropertyRequirement';
 import { UserAuth } from '@/api/entity';
+import { Address } from '@/api/entity/Address';
+import { In } from 'typeorm';
 
 export interface PropertyRequest extends Request {
   body: {
