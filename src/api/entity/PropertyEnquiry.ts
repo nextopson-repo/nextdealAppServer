@@ -14,6 +14,7 @@ import {
 } from 'typeorm';
 import { Address } from './Address';
 import { PropertyImages } from './PropertyImages';
+import { Property } from './Property';
 
 @Entity('PropertyEnquiry')
 export class PropertyEnquiry extends BaseEntity {
@@ -29,7 +30,11 @@ export class PropertyEnquiry extends BaseEntity {
   @Column({ type: 'uuid', nullable: true })
   ownerId!: string;
 
- @Column({ type: 'varchar', default: 'system' })
+  @ManyToOne(() => Property)
+  @JoinColumn({ name: 'propertyId' })
+  property!: Property;
+
+  @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
 
   @Column({ type: 'varchar', default: 'system' })
@@ -45,7 +50,6 @@ export class PropertyEnquiry extends BaseEntity {
     precision: 6,
   })
   updatedAt!: Date;
-  property: any;
 
   @BeforeInsert()
   async generateUUID() {

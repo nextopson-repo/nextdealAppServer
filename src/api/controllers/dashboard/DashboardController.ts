@@ -148,16 +148,38 @@ export const createSavedProperty = async (req: Request, res: Response) => {
     if (!propertyId || !ownerId || !userId) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
+
     const savedPropertyRepo = AppDataSource.getRepository(SavedProperty);
+    const propertyRepo = AppDataSource.getRepository(Property);
+
+    // First check if property exists
+    const propertyDetails = await propertyRepo.findOne({
+      where: { id: propertyId },
+      relations: ['propertyImages', 'address'],
+    });
+
+    if (!propertyDetails) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
     const savedProperty = savedPropertyRepo.create({
       propertyId,
       ownerId,
       userId,
     });
     const newProperty = await savedPropertyRepo.save(savedProperty);
-    return res.status(201).json({ message: 'Saved property created successfully', newProperty });
+
+    return res.status(201).json({
+      message: 'Saved property created successfully',
+      newProperty,
+      propertyDetails,
+    });
   } catch (error: any) {
-    res.status(500).json({ message: error });
+    console.error('Error in createSavedProperty:', error);
+    return res.status(500).json({
+      message: error.message || 'Internal server error',
+      error: error,
+    });
   }
 };
 
@@ -170,7 +192,6 @@ export const getSavedProperties = async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(400).json({ message: 'User ID is required' });
     }
-
     const savedPropertyRepo = AppDataSource.getRepository(SavedProperty);
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
@@ -181,30 +202,31 @@ export const getSavedProperties = async (req: Request, res: Response) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-
     const savedProperties = await savedPropertyRepo.find({
       where: { userId },
     });
 
-    if (!savedProperties) {
+    if (!savedProperties || savedProperties.length === 0) {
       return res.status(404).json({ message: 'No saved properties found' });
     }
-    const property = savedProperties.map(
-      async (sp) =>
-        await propertyRepo.find({
-          where: { id: sp.id },
-          relations: ['propertyImage', 'address'],
-        })
-    );
-
-    const result = [...property, user];
-
+    const propertyIds = savedProperties.map((sp) => sp.propertyId);
+    const properties = await propertyRepo.find({
+      where: { id: In(propertyIds) },
+      relations: ['propertyImages', 'address'],
+    });
+    const propertyMap = new Map(properties.map((p) => [p.id, p]));
+    const result = savedProperties.map((sp) => ({
+      savedProperty: sp,
+      property: propertyMap.get(sp.propertyId) || null,
+    }));
     return res.status(200).json({
       message: 'Saved properties retrieved successfully',
-      result,
+      result: {
+        savedProperties: result,
+        user,
+      },
     });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Internal server error' });
   }
 };
-
