@@ -5,7 +5,7 @@ import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { trendingProperty } from '@/api/controllers/property/PropertyController';
 import{offeringProperty} from '@/api/controllers/property/PropertyController';
-import { getUserRequirements, requireMents } from '@/api/controllers/property/RequirementsController';
+import { CreateOrUpdateRequirement, getUserRequirements } from '@/api/controllers/property/RequirementsController';
 import {  uploadPropertyImagesController } from '@/api/controllers/property/uploadPropertyImages';
 import multer from 'multer';
 
@@ -19,7 +19,7 @@ router.post('/create-update', createOrUpdateProperty);
 router.post('/getAll', getAllProperties);
 router.post('/search-property', searchProperty);
 router.post('/trending-property', trendingProperty);
-router.post('/create-update-requirement', requireMents);
+router.post('/create-update-requirement', CreateOrUpdateRequirement); 
 router.post('/offering-property', offeringProperty)
 router.post("/get-requirements", getUserRequirements)
 router.post(

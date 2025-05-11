@@ -7,6 +7,7 @@ import { UserAuth } from '@/api/entity/UserAuth';
 import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse';
 import { env } from '@/common/utils/envConfig';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
+import { sendEmailOTP } from '@/common/utils/mailService';
 import { AppDataSource } from '@/server';
 
 const loginSchema = z.object({
@@ -20,33 +21,75 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
     
     const userRepo = AppDataSource.getRepository(UserAuth);
     const user = await userRepo.findOne({ where: { mobileNumber } });
+
     if (!user) {
-      handleServiceResponse(
-        new ServiceResponse(ResponseStatus.Failed, 'Invalid credentials', null, StatusCodes.UNAUTHORIZED),
-        res
-      );
-      return;
-    }
-    if (!user.isFullyVerified()) {
+      // Case 2: New user
+      const newUser = new UserAuth();
+      newUser.mobileNumber = mobileNumber;
+      newUser.generateMobileOTP();
+      const savedUser = await userRepo.save(newUser);
+      
       handleServiceResponse(
         new ServiceResponse(
-          ResponseStatus.Failed,
-          'User is not fully verified. Please complete OTP verification.',
-          null,
-          StatusCodes.FORBIDDEN
+          ResponseStatus.Success,
+          'New user. Please verify OTP and complete signup.',
+          {
+            user: {
+              id: savedUser.id,
+              isExistingUser: false,
+              isFullyVerified: false,
+              mobileOTP: savedUser.mobileOTP
+            }
+          },
+          StatusCodes.OK
         ),
         res
       );
       return;
     }
-    // Generate OTP
+
+    // Generate OTP for existing user
     user.generateMobileOTP();
-    const otp = user.mobileOTP
-    res.status(StatusCodes.OK).json({
-      status: ResponseStatus.Success,
-      message: 'OTP generated successfully',
-      data: { otp },
-    });
+    await userRepo.save(user);
+
+    if (!user.isFullyVerified()) {
+      // Case 3: Not fully verified user
+      handleServiceResponse(
+        new ServiceResponse(
+          ResponseStatus.Success,
+          'User not fully verified. Please complete verification.',
+          {
+            user: {
+              id: user.id,
+              isExistingUser: true,
+              isFullyVerified: false,
+              mobileOTP: user.mobileOTP
+            }
+          },
+          StatusCodes.OK
+        ),
+        res
+      );
+      return;
+    }
+
+    // Case 1: Fully verified existing user
+    handleServiceResponse(
+      new ServiceResponse(
+        ResponseStatus.Success,
+        'OTP sent successfully',
+        {
+          user: {
+            id: user.id,
+            isExistingUser: true,
+            isFullyVerified: true,
+            mobileOTP: user.mobileOTP
+          }
+        },
+        StatusCodes.OK
+      ),
+      res
+    );
 
   } catch (error) {
     console.error('Login Error:', error);
@@ -71,13 +114,11 @@ const signupSchema = z.object({
 
 // Validation schema for OTP verification
 const verifyOTPSchema = z.object({
-  body: z.object({
-    // userId: z.string().uuid('Invalid user ID'),
-    otpType: z.enum(['email', 'mobile'], {
-      errorMap: () => ({ message: 'Invalid OTP type' }),
-    }),
-    otp: z.string().length(4, 'OTP must be 4 digits'),
+  userId: z.string().min(1, 'User ID is required'),
+  otpType: z.enum(['email', 'mobile'], {
+    errorMap: () => ({ message: 'Invalid OTP type' }),
   }),
+  otp: z.string().min(4, 'OTP must be 4 digits').max(4, 'OTP must be 4 digits'),
 });
 
 // Error handling wrapper
@@ -126,8 +167,11 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
     const existingUser = await userLoginRepository.findOne({
       where: [{ mobileNumber }, { email }],
     });
+    const verified = existingUser?.isFullyVerified();
+    console.log("verified",verified);
+    console.log("existingUser",existingUser);
 
-    if (existingUser) {
+    if (verified) {
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Failed,
@@ -140,49 +184,70 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Create new user
-    const newUser = userLoginRepository.create({
-      fullName,
-      mobileNumber,
-      email,
-      userType,
-      createdBy: 'system',
-      updatedBy: 'system',
-    });
+    let userToSave: UserAuth;
+    
+    
+    if (existingUser && !verified) {
+      // Update existing unverified user
+      existingUser.email = email;
+      existingUser.userType = userType;
+      existingUser.fullName = fullName;
+      existingUser.isMobileVerified = true;
+      userToSave = existingUser;
+    } else {
+      // Create new user
+      userToSave = new UserAuth();
+      userToSave.fullName = fullName;
+      userToSave.mobileNumber = mobileNumber;
+      userToSave.email = email;
+      userToSave.userType = userType;
+    }
 
     // Generate OTPs
-    newUser.generateEmailOTP();
-    newUser.generateMobileOTP();
+    userToSave.generateEmailOTP();
+    userToSave.generateMobileOTP();
+    userToSave.isMobileVerified=true;
+    userToSave.isEmailVerified=true;
+    
 
     // Save user
-    const savedUser = await userLoginRepository.save(newUser);
+    const savedUser = await userLoginRepository.save(userToSave);
 
-    // In a real application, you would send the OTPs via email and SMS here
-    // For now, we'll just return them in the response for testing purposes
-    const emailOTP = newUser.emailOTP;
-    const mobileOTP = newUser.mobileOTP;
+    // Send email OTP
+    if (savedUser.emailOTP) {
+      try {
+        await sendEmailOTP(email, savedUser.emailOTP);
+      } catch (emailError) {
+        console.error('Failed to send email OTP:', emailError);
+        // Continue with the signup process even if email fails
+      }
+    }
 
-    // Clear OTPs from response for security
-    newUser.emailOTP = null;
-    newUser.mobileOTP = null;
+    // Get mobile OTP for response
+    const mobileOTP = savedUser.mobileOTP;
+
+    // future Clear OTPs from user object for security
+    // savedUser.emailOTP = null;
+    // savedUser.mobileOTP = null;
+    await userLoginRepository.save(savedUser);
 
     // Commit transaction
     await queryRunner.commitTransaction();
 
-    // Return success response with user ID and OTPs
+    // Return success response with user ID and mobile OTP only
     handleServiceResponse(
       new ServiceResponse(
         ResponseStatus.Success,
-        'User registered successfully. Please verify your email and mobile number.',
+        'User registered successfully. Please verify your email',
         {
           user: {
             id: savedUser.id,
             fullName: savedUser.fullName,
             email: savedUser.email,
             userType: savedUser.userType,
+            isEmailVerified: savedUser.isEmailVerified,
+            isMobileVerified: savedUser.isMobileVerified,
           },
-          // In production, these would be sent via email/SMS, not returned in the response
-          emailOTP,
           mobileOTP,
         },
         StatusCodes.CREATED
@@ -192,7 +257,16 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     // Rollback transaction on error
     await queryRunner.rollbackTransaction();
-    throw error;
+    console.error('Signup Error:', error);
+    handleServiceResponse(
+      new ServiceResponse(
+        ResponseStatus.Failed,
+        'Failed to complete signup process',
+        null,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      ),
+      res
+    );
   } finally {
     // Release query runner
     await queryRunner.release();
@@ -206,9 +280,12 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
   await queryRunner.startTransaction();
 
   try {
+    console.log('Received OTP verification request:', req.body);
+    
     // Validate request body
-    const validationResult = verifyOTPSchema.safeParse({ body: req.body });
+    const validationResult = verifyOTPSchema.safeParse(req.body);
     if (!validationResult.success) {
+      console.error('Validation error:', validationResult.error);
       const errorMessage = validationResult.error.errors.map((err) => err.message).join(', ');
       handleServiceResponse(
         new ServiceResponse(ResponseStatus.Failed, errorMessage, null, StatusCodes.BAD_REQUEST),
@@ -245,6 +322,12 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
         res
       );
       return;
+    }
+
+    if(otpType==="email"){
+      user.isEmailVerified=true;
+    }else{
+      user.isMobileVerified=true;
     }
 
     // Save updated user

@@ -21,10 +21,10 @@ export class UserAuth extends BaseEntity {
   @Column({ type: 'varchar', length: 15, unique: true })
   mobileNumber!: string;
 
-  @Column({ type: 'enum', enum: ['Agent', 'Owner', 'EndUser', 'Investor'] })
+  @Column({ type: 'enum', enum: ['Agent', 'Owner', 'EndUser', 'Investor'], nullable: true })
   userType!: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
 
-  @Column({ type: 'varchar', length: 255, unique: true, })
+  @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
   email!: string;
 
   @Column({ type: 'boolean', default: false })

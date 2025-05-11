@@ -4,7 +4,7 @@ import { UserAuth } from '@/api/entity/UserAuth';
 import { AppDataSource } from '@/server';
 import { Request, Response } from 'express';
 
-export const requireMents = async (req: Request, res: Response) => {
+export const CreateOrUpdateRequirement = async (req: Request, res: Response) => {
     try {
         // Extracting the body from the request
         const { 

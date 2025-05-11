@@ -8,6 +8,15 @@ import { handleServiceResponse } from '@/common/utils/httpHandlers';
 // OTP expiration time in minutes
 const OTP_EXPIRATION_TIME = 10;
 
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: UserAuth;
+    }
+  }
+}
+
 export const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
@@ -46,7 +55,7 @@ export const validateOTPRequest = async (req: Request, res: Response, next: Next
     }
 
     // Check if OTP was recently sent
-    const lastOTPSent = user.otpSentAt;
+    const lastOTPSent = otpType === 'email' ? user.emailOTPSentAt : user.mobileOTPSentAt;
     if (lastOTPSent) {
       const timeSinceLastOTP = (Date.now() - lastOTPSent.getTime()) / (1000 * 60); // in minutes
       if (timeSinceLastOTP < 1) { // 1 minute cooldown
@@ -63,10 +72,11 @@ export const validateOTPRequest = async (req: Request, res: Response, next: Next
       }
     }
 
-    // Attach user to request for use in the controller
+    // Store user in request
     req.user = user;
     next();
   } catch (error) {
+    console.error('OTP request validation error:', error);
     handleServiceResponse(
       new ServiceResponse(
         ResponseStatus.Failed,
@@ -82,7 +92,21 @@ export const validateOTPRequest = async (req: Request, res: Response, next: Next
 export const validateOTP = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { otp, otpType } = req.body;
-    const user = req.user as UserAuth;
+    
+    if (!req.user) {
+      handleServiceResponse(
+        new ServiceResponse(
+          ResponseStatus.Failed,
+          'User not found in request',
+          null,
+          StatusCodes.BAD_REQUEST
+        ),
+        res
+      );
+      return;
+    }
+
+    const user = req.user;
 
     if (!otp || !otpType) {
       handleServiceResponse(
@@ -97,6 +121,7 @@ export const validateOTP = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    // Get the appropriate OTP and sent time based on type
     const storedOTP = otpType === 'email' ? user.emailOTP : user.mobileOTP;
     const otpSentAt = otpType === 'email' ? user.emailOTPSentAt : user.mobileOTPSentAt;
 
@@ -128,8 +153,19 @@ export const validateOTP = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // Verify OTP
-    if (storedOTP !== otp) {
+    // Verify OTP using UserAuth methods
+    let isVerified = false;
+    if (otpType === 'email') {
+      isVerified = user.verifyEmailOTP(otp);
+    } else if (otpType === 'mobile') {
+      isVerified = user.verifyMobileOTP(otp);
+    }
+
+    if (!isVerified) {
+      // Increment failed OTP attempts
+      user.incrementFailedOTPAttempts();
+      await AppDataSource.getRepository(UserAuth).save(user);
+
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Failed,
@@ -142,8 +178,13 @@ export const validateOTP = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
+    // Reset failed attempts on successful verification
+    user.resetFailedAttempts();
+    await AppDataSource.getRepository(UserAuth).save(user);
+
     next();
   } catch (error) {
+    console.error('OTP validation error:', error);
     handleServiceResponse(
       new ServiceResponse(
         ResponseStatus.Failed,

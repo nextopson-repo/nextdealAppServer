@@ -11,6 +11,7 @@ import {
   detectSuspiciousActivity,
   trackLoginAttempts,
   trackOTPAttempts,
+  trackSignupAttempts,
   checkAccountLockout,
 } from '@/common/middleware/securityMiddleware';
 
@@ -23,39 +24,41 @@ Router.use(rateLimiter);
 Router.post('/signup', 
   // sanitizeInput,
   // detectSuspiciousActivity,
+  // trackSignupAttempts,
   // checkAccountLockout,
   signup
 );
 
 Router.post('/verify-otp',
-  // sanitizeInput,
-  // detectSuspiciousActivity,
-  // trackOTPAttempts,
+  //sanitizeInput,
+  //validateOTPRequest,
+  //detectSuspiciousActivity,
+  //trackOTPAttempts,
   // validateOTP,
   VerifyOTP
 );
 
 Router.post('/resend-email-otp',
-  // sanitizeInput,
-  // detectSuspiciousActivity,
-  // trackOTPAttempts,
-  // validateOTPRequest,
+  //sanitizeInput,
+  //detectSuspiciousActivity,
+  //trackOTPAttempts,
+  //validateOTPRequest,
   resendEmailOtp
 );
 
 Router.post('/resend-mobile-otp',
-  // sanitizeInput,
-  // detectSuspiciousActivity,
-  // trackOTPAttempts,
-  // validateOTPRequest,
+  //sanitizeInput,
+  //detectSuspiciousActivity,
+  //trackOTPAttempts,
+  //validateOTPRequest,
   resendMobileOtp
 );
 
 Router.post('/login',
-  // sanitizeInput,
-  // detectSuspiciousActivity,
-  // trackLoginAttempts,
-  // checkAccountLockout,
+  //sanitizeInput,
+  //detectSuspiciousActivity,
+  //trackLoginAttempts,
+  //  checkAccountLockout,
   login
 );
 

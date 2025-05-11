@@ -80,7 +80,7 @@ AppDataSource.initialize()
     app.use(
       cors({
         origin: function (origin, callback) {
-          callback(null, true); // Allow all origins
+          callback(null, true); 
         },
         credentials: true,
       })
