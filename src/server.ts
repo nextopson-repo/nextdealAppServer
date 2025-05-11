@@ -21,19 +21,17 @@ import { Property } from './api/entity/Property';
 import { Address } from './api/entity/Address';
 import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
-import property from './api/routes/PropertyRoutes/PropertyRoute';
+import property from './api/routes/PropertyRoutes/PropertyRoute'; 
 import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
 // Ensure this path is correct
 import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc';
-import { RepublishProperty } from './api/entity/republishedEntity';
-// import { RepublishProperty } from './api/entity/RepublishProperties';
+import { RepublishProperty } from './api/entity/RepublishProperties';
 
-import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
+import DashboardRoute from "./api/routes/Dashboard/DashboardRoutes"
+import republishRoutes from './api/routes/Dashboard/republishedRoute'; // Ensure this path is correct
 import { PropertyImages } from './api/entity/PropertyImages';
-import republishedRoute from './api/routes/dashboardRoutes/republishedRoute';
-import { Location } from './api/entity/Location';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -45,7 +43,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages, Location],
+  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages],
   synchronize: true,
   logging: false,
   entitySkipConstructor: true,
@@ -97,10 +95,9 @@ AppDataSource.initialize()
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
     app.use("/api/v1/profile", profile)
-    app.use("/api/v1/dropdown", DropDownRouter)
-    app.use('/api/v1/kyc', kycProcessRoutes);
+app.use("/api/v1/dropdown", DropDownRouter)
+ app.use('/api/v1/kyc', kycProcessRoutes);
     app.use("/api/v1/dashboard", DashboardRoute);
-    app.use("/api/v1/republish", republishedRoute);
 
     // Error handlers
     app.use(errorHandler());
@@ -111,3 +108,4 @@ AppDataSource.initialize()
   });
 
 export { app, AppDataSource, logger };
+

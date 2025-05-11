@@ -8,6 +8,10 @@ import{offeringProperty} from '@/api/controllers/property/PropertyController';
 import { CreateOrUpdateRequirement, getUserRequirements } from '@/api/controllers/property/RequirementsController';
 import {  uploadPropertyImagesController } from '@/api/controllers/property/uploadPropertyImages';
 import multer from 'multer';
+import { getUserProperties } from '@/api/controllers/property/PropertyController';
+
+
+// import { getUserRequirements, requireMents } from '@/api/controllers/property/RequirementsController';
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -27,4 +31,5 @@ router.post(
   upload.single('file'),
   uploadPropertyImagesController
 );
+router.post('/get-user-properties', getUserProperties);
 export default router;

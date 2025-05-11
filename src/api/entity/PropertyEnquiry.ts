@@ -1,4 +1,4 @@
-import { randomBytes } from "crypto";
+import { randomBytes } from 'crypto';
 import {
   BaseEntity,
   BeforeInsert,
@@ -6,41 +6,38 @@ import {
   Column,
   CreateDateColumn,
   Entity,
-  ManyToOne,
   JoinColumn,
+  ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
-} from "typeorm";
-import { Property } from "./Property";
+} from 'typeorm';
+import { Address } from './Address';
+import { PropertyImages } from './PropertyImages';
+import { Property } from './Property';
 
-@Entity('PropertyImages')
-export class PropertyImages extends BaseEntity {
+@Entity('PropertyEnquiry')
+export class PropertyEnquiry extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', nullable: false })
-  imageKey!: string;
-
-  @Column({ type: 'varchar', nullable: false })
-  presignedUrl!: string;
-
-  @Column({ type: "enum", enum: ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'], default: null })
-  imgClassifications!: string;
-
-  @Column({ type: 'int', default: null })
-  accurencyPercent!: number;
+  @Column('uuid')
+  userId!: string;
 
   @Column({ type: 'uuid', nullable: true })
   propertyId!: string;
 
-  @ManyToOne(() => Property, (property) => property.propertyImages)
+  @Column({ type: 'uuid', nullable: true })
+  ownerId!: string;
+
+  @ManyToOne(() => Property)
   @JoinColumn({ name: 'propertyId' })
   property!: Property;
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'varchar', default: 'system' })
   updatedBy!: string;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
