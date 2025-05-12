@@ -21,7 +21,7 @@ import { Property } from './api/entity/Property';
 import { Address } from './api/entity/Address';
 import { UserCredibility } from './api/entity/ Credibility';
 import { SavedProperty } from './api/entity/SavedProperties';
-import property from './api/routes/PropertyRoutes/PropertyRoute'; 
+import property from './api/routes/PropertyRoutes/PropertyRoute';
 import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
 // Ensure this path is correct
@@ -78,7 +78,7 @@ AppDataSource.initialize()
     app.use(
       cors({
         origin: function (origin, callback) {
-          callback(null, true); 
+          callback(null, true);
         },
         credentials: true,
       })
@@ -95,8 +95,8 @@ AppDataSource.initialize()
     app.use('/api/v1/s3', s3bucket);
     app.use('/api/v1/property', property);
     app.use("/api/v1/profile", profile)
-app.use("/api/v1/dropdown", DropDownRouter)
- app.use('/api/v1/kyc', kycProcessRoutes);
+    app.use("/api/v1/dropdown", DropDownRouter)
+    app.use('/api/v1/kyc', kycProcessRoutes);
     app.use("/api/v1/dashboard", DashboardRoute);
     app.use("/api/v1/republish", republishRoutes)
     // Error handlers

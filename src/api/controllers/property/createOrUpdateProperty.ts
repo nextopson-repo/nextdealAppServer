@@ -5,6 +5,7 @@ import { Address } from '@/api/entity/Address';
 import { UserAuth } from '@/api/entity';
 import { PropertyImages } from '@/api/entity/PropertyImages';
 
+
 // Property creation/update request type
 export interface PropertyRequest extends Request {
   body: {

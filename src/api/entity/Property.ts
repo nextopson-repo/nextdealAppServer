@@ -37,6 +37,12 @@ export class Property extends BaseEntity {
   propertyImages!: PropertyImages[];
 
   @Column({ type: 'varchar', nullable: false })
+  title!: string;
+
+  @Column({ type: 'varchar', nullable: false })
+  description!: string;
+
+  @Column({ type: 'varchar', nullable: false })
   category!: string;
 
   @Column({ type: 'varchar', nullable: false })
