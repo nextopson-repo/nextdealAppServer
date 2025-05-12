@@ -39,7 +39,7 @@ export class Property extends BaseEntity {
   @Column({ type: 'varchar', nullable: false })
   title!: string;
 
-  @Column({ type: 'varchar', nullable: false })
+  @Column({ type: 'text', nullable: false })
   description!: string;
 
   @Column({ type: 'varchar', nullable: false })

@@ -4,10 +4,19 @@ import { Property } from '@/api/entity/Property';
 import { Address } from '@/api/entity/Address';
 import { UserAuth } from '@/api/entity';
 import { PropertyImages } from '@/api/entity/PropertyImages';
+import { PropertyTitleAndDescription } from '@/ml-models/property/TitleAndDiscription';
 
+// Custom type for request user
+type RequestUser = {
+  id: string;
+  userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
+  email: string;
+  mobileNumber: string;
+  isAdmin?: boolean;
+};
 
 // Property creation/update request type
-export interface PropertyRequest extends Request {
+export interface PropertyRequest extends Omit<Request, 'user'> {
   body: {
     propertyId?: string;
     userId?: string;
@@ -40,13 +49,7 @@ export interface PropertyRequest extends Request {
     reraApproved?: boolean;
     amenities?: string[];
   };
-  user?: {
-    id: string;
-    userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
-    email: string;
-    mobileNumber: string;
-    isAdmin?: boolean;
-  };
+  user?: RequestUser;
 }
 
 export const createOrUpdateProperty = async (req: PropertyRequest, res: Response) => {
@@ -173,6 +176,22 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       }
 
       const updatedProperty = await propertyRepo.save(existingProperty);
+
+      // Generate title and description for updated property
+      try {
+        const { title, description } = await PropertyTitleAndDescription.generate(updatedProperty);
+        if (title && description) {
+          updatedProperty.title = title;
+          updatedProperty.description = description;
+          await propertyRepo.save(updatedProperty);
+        }
+      } catch (error) {
+        console.error('Error generating title and description:', error);
+        // Generate detailed fallback title and description if ML generation fails
+        updatedProperty.title = `${updatedProperty.category} ${updatedProperty.subCategory} for ${updatedProperty.isSale ? 'Sale' : 'Rent'} in ${updatedProperty.address?.locality || ''}, ${updatedProperty.address?.city || ''} - ${updatedProperty.bhks || ''} BHK, ${updatedProperty.carpetArea || updatedProperty.buildupArea || ''} sqft, ₹${updatedProperty.propertyPrice || ''}${updatedProperty.furnishing ? ', ' + updatedProperty.furnishing : ''}${updatedProperty.projectName ? ', ' + updatedProperty.projectName : ''}`.replace(/\s+/g, ' ').trim();
+        updatedProperty.description = `Discover a ${updatedProperty.bhks || ''} BHK ${updatedProperty.furnishing ? updatedProperty.furnishing + ' ' : ''}${updatedProperty.subCategory.toLowerCase()}${updatedProperty.projectName ? ' in project ' + updatedProperty.projectName : ''} located at ${updatedProperty.address?.locality || ''}, ${updatedProperty.address?.city || ''}, ${updatedProperty.address?.state || ''}. ${updatedProperty.propertyFacing ? 'Facing: ' + updatedProperty.propertyFacing + '. ' : ''}${updatedProperty.ageOfTheProperty ? 'Age: ' + updatedProperty.ageOfTheProperty + '. ' : ''}${updatedProperty.carpetArea ? 'Carpet Area: ' + updatedProperty.carpetArea + ' sqft. ' : ''}${updatedProperty.buildupArea ? 'Buildup Area: ' + updatedProperty.buildupArea + ' sqft. ' : ''}${updatedProperty.propertyPrice ? 'Price: ₹' + updatedProperty.propertyPrice + '. ' : ''}${updatedProperty.totalBathrooms ? 'Bathrooms: ' + updatedProperty.totalBathrooms + '. ' : ''}${updatedProperty.totalRooms ? 'Rooms: ' + updatedProperty.totalRooms + '. ' : ''}${updatedProperty.addFurnishing && updatedProperty.addFurnishing.length ? 'Additional Furnishing: ' + updatedProperty.addFurnishing.join(', ') + '. ' : ''}${updatedProperty.amenities && updatedProperty.amenities.length ? 'Amenities: ' + updatedProperty.amenities.join(', ') + '. ' : ''}${updatedProperty.constructionStatus ? 'Construction Status: ' + updatedProperty.constructionStatus + '. ' : ''}${updatedProperty.reraApproved ? 'RERA Approved. ' : ''}${updatedProperty.viewFromProperty && updatedProperty.viewFromProperty.length ? 'View: ' + updatedProperty.viewFromProperty.join(', ') + '. ' : ''}${updatedProperty.parking ? 'Parking: ' + updatedProperty.parking + '. ' : ''}${updatedProperty.availablefor ? 'Available for: ' + updatedProperty.availablefor + '. ' : ''}${updatedProperty.unit ? 'Unit: ' + updatedProperty.unit + '. ' : ''}${updatedProperty.soilType ? 'Soil Type: ' + updatedProperty.soilType + '. ' : ''}${updatedProperty.approachRoad ? 'Approach Road: ' + updatedProperty.approachRoad + '. ' : ''}${updatedProperty.totalfloors ? 'Total Floors: ' + updatedProperty.totalfloors + '. ' : ''}${updatedProperty.officefloor ? 'Office Floor: ' + updatedProperty.officefloor + '. ' : ''}${updatedProperty.yourfloor ? 'Your Floor: ' + updatedProperty.yourfloor + '. ' : ''}${updatedProperty.cabins ? 'Cabins: ' + updatedProperty.cabins + '. ' : ''}${updatedProperty.washroom ? 'Washroom: ' + updatedProperty.washroom + '. ' : ''}`.replace(/\s+/g, ' ').trim();
+        await propertyRepo.save(updatedProperty);
+      }
       
       // Fetch the updated property with all relations
       const propertyWithRelations = await propertyRepo.findOne({
@@ -245,6 +264,22 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       });
 
       await propertyImagesRepo.save(propertyImages);
+    }
+
+    // Generate title and description for new property
+    try {
+      const { title, description } = await PropertyTitleAndDescription.generate(savedProperty);
+      if (title && description) {
+        savedProperty.title = title;
+        savedProperty.description = description;
+        await propertyRepo.save(savedProperty);
+      }
+    } catch (error) {
+      console.error('Error generating title and description:', error);
+      // Generate detailed fallback title and description if ML generation fails
+      savedProperty.title = `${savedProperty.category} ${savedProperty.subCategory} for ${savedProperty.isSale ? 'Sale' : 'Rent'} in ${savedProperty.address?.locality || ''}, ${savedProperty.address?.city || ''} - ${savedProperty.bhks || ''} BHK, ${savedProperty.carpetArea || savedProperty.buildupArea || ''} sqft, ₹${savedProperty.propertyPrice || ''}${savedProperty.furnishing ? ', ' + savedProperty.furnishing : ''}${savedProperty.projectName ? ', ' + savedProperty.projectName : ''}`.replace(/\s+/g, ' ').trim();
+      savedProperty.description = `Discover a ${savedProperty.bhks || ''} BHK ${savedProperty.furnishing ? savedProperty.furnishing + ' ' : ''}${savedProperty.subCategory.toLowerCase()}${savedProperty.projectName ? ' in project ' + savedProperty.projectName : ''} located at ${savedProperty.address?.locality || ''}, ${savedProperty.address?.city || ''}, ${savedProperty.address?.state || ''}. ${savedProperty.propertyFacing ? 'Facing: ' + savedProperty.propertyFacing + '. ' : ''}${savedProperty.ageOfTheProperty ? 'Age: ' + savedProperty.ageOfTheProperty + '. ' : ''}${savedProperty.carpetArea ? 'Carpet Area: ' + savedProperty.carpetArea + ' sqft. ' : ''}${savedProperty.buildupArea ? 'Buildup Area: ' + savedProperty.buildupArea + ' sqft. ' : ''}${savedProperty.propertyPrice ? 'Price: ₹' + savedProperty.propertyPrice + '. ' : ''}${savedProperty.totalBathrooms ? 'Bathrooms: ' + savedProperty.totalBathrooms + '. ' : ''}${savedProperty.totalRooms ? 'Rooms: ' + savedProperty.totalRooms + '. ' : ''}${savedProperty.addFurnishing && savedProperty.addFurnishing.length ? 'Additional Furnishing: ' + savedProperty.addFurnishing.join(', ') + '. ' : ''}${savedProperty.amenities && savedProperty.amenities.length ? 'Amenities: ' + savedProperty.amenities.join(', ') + '. ' : ''}${savedProperty.constructionStatus ? 'Construction Status: ' + savedProperty.constructionStatus + '. ' : ''}${savedProperty.reraApproved ? 'RERA Approved. ' : ''}${savedProperty.viewFromProperty && savedProperty.viewFromProperty.length ? 'View: ' + savedProperty.viewFromProperty.join(', ') + '. ' : ''}${savedProperty.parking ? 'Parking: ' + savedProperty.parking + '. ' : ''}${savedProperty.availablefor ? 'Available for: ' + savedProperty.availablefor + '. ' : ''}${savedProperty.unit ? 'Unit: ' + savedProperty.unit + '. ' : ''}${savedProperty.soilType ? 'Soil Type: ' + savedProperty.soilType + '. ' : ''}${savedProperty.approachRoad ? 'Approach Road: ' + savedProperty.approachRoad + '. ' : ''}${savedProperty.totalfloors ? 'Total Floors: ' + savedProperty.totalfloors + '. ' : ''}${savedProperty.officefloor ? 'Office Floor: ' + savedProperty.officefloor + '. ' : ''}${savedProperty.yourfloor ? 'Your Floor: ' + savedProperty.yourfloor + '. ' : ''}${savedProperty.cabins ? 'Cabins: ' + savedProperty.cabins + '. ' : ''}${savedProperty.washroom ? 'Washroom: ' + savedProperty.washroom + '. ' : ''}`.replace(/\s+/g, ' ').trim();
+      await propertyRepo.save(savedProperty);
     }
 
     // Fetch the new property with all relations

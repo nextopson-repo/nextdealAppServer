@@ -1,6 +1,5 @@
 import * as tf from '@tensorflow/tfjs-node';
 import natural from 'natural';
-import { loadTokenizer } from '@tensorflow-models/universal-sentence-encoder';
 import { Property } from '@/api/entity/Property';
 
 // NSFW words to filter out
@@ -11,24 +10,27 @@ const NSFW_WORDS = [
 
 export class PropertyTitleAndDescription {
   private static model: tf.LayersModel | null = null;
-  private static tokenizer: any = null;
+  private static tokenizer: natural.WordTokenizer;
+  private static tokenToIndex: Map<string, number> = new Map();
   private static readonly MAX_TITLE_LENGTH = 100;
-  private static readonly MAX_DESCRIPTION_LENGTH = 500;
+  private static readonly MAX_DESCRIPTION_LENGTH = 10000;
   private static readonly VOCAB_SIZE = 10000;
   private static readonly EMBEDDING_DIM = 256;
 
   private static async initializeModel() {
     if (!this.model) {
-      // Load pre-trained model or create new one
       try {
+        // Try to load pre-trained model
         this.model = await tf.loadLayersModel('file://./models/property_generator/model.json');
       } catch {
         // Create new model if pre-trained model doesn't exist
         this.model = this.createModel();
       }
+    }
 
-      // Initialize tokenizer
-      this.tokenizer = await loadTokenizer();
+    // Initialize tokenizer if not already initialized
+    if (!this.tokenizer) {
+      this.tokenizer = new natural.WordTokenizer();
     }
   }
 
@@ -90,16 +92,27 @@ export class PropertyTitleAndDescription {
       property.propertyPrice?.toString()
     ].filter(Boolean).join(' ');
 
-    const tokens = await this.tokenizer.tokenize(features);
+    const tokens = this.tokenizer.tokenize(features);
     const paddedSequence = this.padSequence(tokens, this.MAX_TITLE_LENGTH);
     return tf.tensor2d([paddedSequence]);
   }
 
-  private static padSequence(sequence: number[], maxLength: number): number[] {
-    if (sequence.length > maxLength) {
-      return sequence.slice(0, maxLength);
+  private static padSequence(sequence: string[], maxLength: number): number[] {
+    let currentIndex = 1; // Start from 1 to reserve 0 for padding
+
+    // Convert tokens to indices
+    const indices = sequence.map(token => {
+      if (!this.tokenToIndex.has(token)) {
+        this.tokenToIndex.set(token, currentIndex++);
+      }
+      return this.tokenToIndex.get(token)!;
+    });
+
+    // Pad or truncate sequence
+    if (indices.length > maxLength) {
+      return indices.slice(0, maxLength);
     }
-    return [...sequence, ...Array(maxLength - sequence.length).fill(0)];
+    return [...indices, ...Array(maxLength - indices.length).fill(0)];
   }
 
   private static isNSFW(text: string): boolean {
@@ -120,10 +133,18 @@ export class PropertyTitleAndDescription {
     const inputTensor = await this.preprocessPropertyData(property);
     const prediction = this.model!.predict(inputTensor) as tf.Tensor;
     const predictionArray = prediction.argMax(-1).arraySync() as number[][];
-    const titleTokens = await this.tokenizer.detokenize(predictionArray[0]);
     
+    // Convert prediction indices back to tokens
+    const titleTokens = predictionArray[0].map(index => {
+      // Find the token that corresponds to this index
+      for (const [token, idx] of this.tokenToIndex.entries()) {
+        if (idx === index) return token;
+      }
+      return '';
+    }).filter(Boolean);
+
     // Clean and format the generated title
-    const title = this.cleanGeneratedText(titleTokens);
+    const title = this.cleanGeneratedText(titleTokens.join(' '));
     return title.length > this.MAX_TITLE_LENGTH ? 
       title.substring(0, this.MAX_TITLE_LENGTH) : title;
   }
@@ -136,12 +157,19 @@ export class PropertyTitleAndDescription {
     const inputTensor = await this.preprocessPropertyData(property);
     const prediction = this.model!.predict(inputTensor) as tf.Tensor;
     const predictionArray = prediction.argMax(-1).arraySync() as number[][];
-    const descriptionTokens = await this.tokenizer.detokenize(predictionArray[0]);
     
+    // Convert prediction indices back to tokens
+    const descriptionTokens = predictionArray[0].map(index => {
+      // Find the token that corresponds to this index
+      for (const [token, idx] of this.tokenToIndex.entries()) {
+        if (idx === index) return token;
+      }
+      return '';
+    }).filter(Boolean);
+
     // Clean and format the generated description
-    const description = this.cleanGeneratedText(descriptionTokens);
-    return description.length > this.MAX_DESCRIPTION_LENGTH ? 
-      description.substring(0, this.MAX_DESCRIPTION_LENGTH) : description;
+    const description = this.cleanGeneratedText(descriptionTokens.join(' '));
+    return this.ensureMinimumWords(description, property).substring(0, this.MAX_DESCRIPTION_LENGTH);
   }
 
   private static cleanGeneratedText(text: string): string {
@@ -152,20 +180,75 @@ export class PropertyTitleAndDescription {
       .trim();
   }
 
+  private static ensureMinimumWords(text: string, property: Property, minWords = 30): string {
+    let wordCount = text.split(/\s+/).length;
+    let extraDetails = [
+      property.amenities && property.amenities.length ? 'Amenities include: ' + property.amenities.join(', ') + '.' : '',
+      property.addFurnishing && property.addFurnishing.length ? 'Additional furnishing: ' + property.addFurnishing.join(', ') + '.' : '',
+      property.constructionStatus ? 'Construction status: ' + property.constructionStatus + '.' : '',
+      property.propertyFacing ? 'Facing: ' + property.propertyFacing + '.' : '',
+      property.ageOfTheProperty ? 'Property age: ' + property.ageOfTheProperty + '.' : '',
+      property.reraApproved ? 'RERA approved.' : '',
+      property.viewFromProperty && property.viewFromProperty.length ? 'Views: ' + property.viewFromProperty.join(', ') + '.' : '',
+      property.parking ? 'Parking: ' + property.parking + '.' : '',
+      property.availablefor ? 'Available for: ' + property.availablefor + '.' : '',
+      property.unit ? 'Unit: ' + property.unit + '.' : '',
+      property.soilType ? 'Soil type: ' + property.soilType + '.' : '',
+      property.approachRoad ? 'Approach road: ' + property.approachRoad + '.' : '',
+      property.totalfloors ? 'Total floors: ' + property.totalfloors + '.' : '',
+      property.officefloor ? 'Office floor: ' + property.officefloor + '.' : '',
+      property.yourfloor ? 'Your floor: ' + property.yourfloor + '.' : '',
+      property.cabins ? 'Cabins: ' + property.cabins + '.' : '',
+      property.washroom ? 'Washroom: ' + property.washroom + '.' : ''
+    ].filter(Boolean);
+
+    let i = 0;
+    while (wordCount < minWords && i < extraDetails.length) {
+      text += ' ' + extraDetails[i];
+      wordCount = text.split(/\s+/).length;
+      i++;
+    }
+    return text;
+  }
+
+  private static ruleBasedTitle(property: Property): string {
+    return `${property.bhks || ''} BHK ${property.furnishing || ''} ${property.subCategory || ''} in ${property.projectName || property.propertyName || ''}, ${property.address?.locality || ''}, ${property.address?.city || ''}`.replace(/\s+/g, ' ').replace(/ ,/g, ',').trim();
+  }
+
+  private static ruleBasedDescription(property: Property): string {
+    return `Discover this spacious ${property.bhks || ''} BHK ${property.furnishing || ''} ${property.subCategory?.toLowerCase() || ''} located in ${property.propertyName || ''}${property.propertyName && property.projectName ? ', ' : ''}${property.projectName || ''}, at ${property.address?.locality || ''}, ${property.address?.city || ''}. This ready-to-move-in residential apartment offers a built-up area of ${property.buildupArea || ''} ${property.unit || 'sqft'} and a carpet area of ${property.carpetArea || ''} ${property.unit || 'sqft'}. The ${property.propertyFacing?.toLowerCase() || ''}-facing flat is thoughtfully designed with ${property.totalRooms || ''} rooms and ${property.totalBathrooms || ''} bathrooms, ideal for modern living. Enjoy a host of premium amenities including ${property.amenities?.join(', ') || ''}. With ${property.viewFromProperty?.join(', ') || ''} and excellent ventilation, the apartment is part of a ${property.reraApproved ? 'RERA-approved' : ''} property, promising peace of mind and investment safety. Perfectly suited for families seeking comfort and convenience in the heart of ${property.address?.state || ''}`.replace(/\s+/g, ' ').replace(/ ,/g, ',').replace(/\.;/g, '.').replace(/\.,/g, '.').replace(/\.,/g, '.').replace(/\.,/g, '.').trim();
+  }
+
+  private static truncateAtWord(text: string, maxLength: number): string {
+    if (text.length <= maxLength) return text;
+    const truncated = text.substr(0, maxLength);
+    return truncated.substr(0, truncated.lastIndexOf(' ')) + '...';
+  }
+
   public static async generate(property: Property): Promise<{ title: string; description: string }> {
     try {
       const title = await this.generateTitle(property);
       const description = await this.generateDescription(property);
 
-      return {
-        title,
-        description
-      };
-    } catch (error) {
-      if (error instanceof Error && error.message.includes('NSFW')) {
-        throw new Error('NSFW content detected in property details');
+      // Fallback if ML output is too short
+      if (!title || title.split(' ').length < 7) {
+        return {
+          title: this.ruleBasedTitle(property),
+          description: this.ruleBasedDescription(property)
+        };
       }
-      throw error;
+      if (!description || description.split(' ').length < 30) {
+        return {
+          title,
+          description: this.ruleBasedDescription(property)
+        };
+      }
+      return { title, description };
+    } catch (error) {
+      return {
+        title: this.ruleBasedTitle(property),
+        description: this.ruleBasedDescription(property)
+      };
     }
   }
 
@@ -182,11 +265,11 @@ export class PropertyTitleAndDescription {
     );
     const X_tensor = tf.concat(X);
 
-    const y_titles = await Promise.all(
-      trainingData.map(data => this.tokenizer.tokenize(data.title))
+    const y_titles = trainingData.map(data => 
+      this.padSequence(this.tokenizer.tokenize(data.title), this.MAX_TITLE_LENGTH)
     );
-    const y_descriptions = await Promise.all(
-      trainingData.map(data => this.tokenizer.tokenize(data.description))
+    const y_descriptions = trainingData.map(data => 
+      this.padSequence(this.tokenizer.tokenize(data.description), this.MAX_DESCRIPTION_LENGTH)
     );
 
     const y_tensor = tf.concat([
