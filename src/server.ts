@@ -29,8 +29,8 @@ import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 
-import DashboardRoute from "./api/routes/Dashboard/DashboardRoutes"
-import republishRoutes from './api/routes/Dashboard/republishedRoute'; // Ensure this path is correct
+import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
+import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; // Ensure this path is correct
 import { PropertyImages } from './api/entity/PropertyImages';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
@@ -98,7 +98,7 @@ AppDataSource.initialize()
 app.use("/api/v1/dropdown", DropDownRouter)
  app.use('/api/v1/kyc', kycProcessRoutes);
     app.use("/api/v1/dashboard", DashboardRoute);
-
+    app.use("/api/v1/republish", republishRoutes)
     // Error handlers
     app.use(errorHandler());
   })
