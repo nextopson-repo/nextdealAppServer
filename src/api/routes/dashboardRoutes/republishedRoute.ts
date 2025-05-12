@@ -1,10 +1,6 @@
+import { createRepublisher, myUserRepublisher, republishRequest, statusUpdate } from '@/api/controllers/Dashboard/RepublishedController';
 import express from 'express';
-import {
-  createRepublisher,
-  republishRequest,
-  statusUpdate,
-  myUserRepublisher,
-} from '@/api/controllers/dashboard/RepublishedController';
+
 
 const router = express.Router();
 

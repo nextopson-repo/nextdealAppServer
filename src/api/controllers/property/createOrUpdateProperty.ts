@@ -4,48 +4,45 @@ import { Property } from '@/api/entity/Property';
 import { Address } from '@/api/entity/Address';
 import { UserAuth } from '@/api/entity';
 import { PropertyImages } from '@/api/entity/PropertyImages';
+import { PropertyTitleAndDescription } from '@/ml-models/property/TitleAndDiscription';
 
 // Property creation/update request type
+interface PropertyRequestBody {
+  propertyId?: string;
+  userId?: string;
+  addressState?: string;
+  addressCity?: string;
+  addressLocality?: string;
+  imageKeys?: Array<{
+    imageKey: string;
+    imgClassifications: 'Bathroom' | 'Bedroom' | 'Dining' | 'Kitchen' | 'Livingroom';
+    accurencyPercent: number;
+  }>;
+  category: string;
+  subCategory: string;
+  projectName?: string;
+  propertyName?: string;
+  isSale?: boolean;
+  totalBathrooms?: number;
+  totalRooms?: number;
+  propertyPrice?: number;
+  isSold?: boolean;
+  conversion?: string[];
+  carpetArea?: number;
+  buildupArea?: number;
+  bhks?: number;
+  furnishing?: string;
+  addFurnishing?: string[];
+  constructionStatus?: string;
+  propertyFacing?: string;
+  ageOfTheProperty?: string;
+  reraApproved?: boolean;
+  amenities?: string[];
+}
+
 export interface PropertyRequest extends Request {
-  body: {
-    propertyId?: string;
-    userId?: string;
-    addressState?: string;
-    addressCity?: string;
-    addressLocality?: string;
-    imageKeys?: Array<{
-      imageKey: string;
-      imgClassifications: 'Bathroom' | 'Bedroom' | 'Dining' | 'Kitchen' | 'Livingroom';
-      accurencyPercent: number;
-    }>;
-    category: string;
-    subCategory: string;
-    projectName?: string;
-    propertyName?: string;
-    isSale?: boolean;
-    totalBathrooms?: number;
-    totalRooms?: number;
-    propertyPrice?: number;
-    isSold?: boolean;
-    conversion?: string[];
-    carpetArea?: number;
-    buildupArea?: number;
-    bhks?: number;
-    furnishing?: string;
-    addFurnishing?: string[];
-    constructionStatus?: string;
-    propertyFacing?: string;
-    ageOfTheProperty?: string;
-    reraApproved?: boolean;
-    amenities?: string[];
-  };
-  user?: {
-    id: string;
-    userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
-    email: string;
-    mobileNumber: string;
-    isAdmin?: boolean;
-  };
+  body: PropertyRequestBody;
+  user?: UserAuth;
 }
 
 export const createOrUpdateProperty = async (req: PropertyRequest, res: Response) => {
@@ -179,6 +176,35 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
         relations: ['address', 'propertyImages'],
       });
       
+      // Generate title and description
+      try {
+        const propertyData = {
+          ...req.body,
+          address: {
+            state: addressState,
+            city: addressCity,
+            locality: addressLocality,
+          }
+        } as Property;
+
+        const { title, description } = await PropertyTitleAndDescription.generate(propertyData);
+        
+        // Add generated title and description to the property data
+        existingProperty.title = title;
+        existingProperty.description = description;
+        
+        // Save the updated property with new title and description
+        await propertyRepo.save(existingProperty);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('NSFW')) {
+          return res.status(400).json({
+            success: false,
+            message: 'NSFW content detected in property details'
+          });
+        }
+        throw error;
+      }
+
       return res.status(200).json({ 
         success: true,
         message: 'Property updated successfully', 
@@ -251,6 +277,35 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       where: { id: savedProperty.id },
       relations: ['address', 'propertyImages'],
     });
+
+    // Generate title and description
+    try {
+      const propertyData = {
+        ...req.body,
+        address: {
+          state: addressState,
+          city: addressCity,
+          locality: addressLocality,
+        }
+      } as Property;
+
+      const { title, description } = await PropertyTitleAndDescription.generate(propertyData);
+      
+      // Add generated title and description to the property data
+      savedProperty.title = title;
+      savedProperty.description = description;
+      
+      // Save the property with generated title and description
+      await propertyRepo.save(savedProperty);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('NSFW')) {
+        return res.status(400).json({
+          success: false,
+          message: 'NSFW content detected in property details'
+        });
+      }
+      throw error;
+    }
 
     return res.status(201).json({
       success: true,

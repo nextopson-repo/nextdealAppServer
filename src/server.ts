@@ -29,8 +29,8 @@ import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 
-import DashboardRoute from "./api/routes/Dashboard/DashboardRoutes"
-import republishRoutes from './api/routes/Dashboard/republishedRoute'; // Ensure this path is correct
+import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
+import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; // Ensure this path is correct
 import { PropertyImages } from './api/entity/PropertyImages';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
@@ -44,9 +44,9 @@ const dataSourceOptions: DataSourceOptions = {
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
   entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages],
-  synchronize: true,
+  synchronize: false,
   logging: false,
-  entitySkipConstructor: true,
+  entitySkipConstructor: false,
 };
 
 const AppDataSource = new DataSource(dataSourceOptions);

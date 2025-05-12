@@ -9,25 +9,59 @@ import multer from 'multer';
 // Configure multer for memory storage
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Define types for better type safety
-interface UploadResponse {
-  status: 'success' | 'error';
-  message: string;
-  data?: {
-    url: string;
-    key: string;
-    imgClassifications?: string;
-    accurencyPercent?: string;
-  };
-}
-
+// AWS Configuration with retry logic
 const s3 = new S3Client({
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
   },
   region: process.env.AWS_REGION,
+  maxAttempts: 3,
+  retryMode: 'standard',
+  requestHandler: {
+    timeout: 5000
+  }
 });
+
+// Validate AWS configuration
+function validateAWSConfig() {
+  const requiredEnvVars = [
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_REGION',
+    'AWS_S3_BUCKET'
+  ];
+
+  const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required AWS environment variables: ${missingVars.join(', ')}`);
+  }
+}
+
+// Retry function for AWS operations
+async function retryOperation<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<T> {
+  let lastError: Error | null = null;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error as Error;
+      console.error(`Attempt ${i + 1} failed:`, error);
+      
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+      }
+    }
+  }
+  
+  throw lastError;
+}
 
 // Generate unique key using timestamp and random number
 function generateUniqueKey(originalname: string): string {
@@ -36,8 +70,10 @@ function generateUniqueKey(originalname: string): string {
   return `${timestamp}-${random}-${originalname}`;
 }
 
-export const uploadPropertyImagesController = async (req: Request, res: Response<UploadResponse>) => {
+export const uploadPropertyImagesController = async (req: Request, res: Response) => {
   try {
+    validateAWSConfig();
+    
     console.log('Received upload request:', {
       body: req.body,
       file: req.file ? {
@@ -68,10 +104,6 @@ export const uploadPropertyImagesController = async (req: Request, res: Response
       contentType
     });
 
-    if (!bucketName) {
-      throw new Error('AWS_S3_BUCKET environment variable is not set');
-    }
-
     // Generate a unique key for the S3 object using timestamp and random number
     const key = `property-images/${propertyId || 'temp'}/${generateUniqueKey(req.file.originalname)}`;
     console.log('Generated S3 key:', key);
@@ -88,7 +120,7 @@ export const uploadPropertyImagesController = async (req: Request, res: Response
       });
     }
 
-    // Upload to S3
+    // Upload to S3 with retry logic
     console.log('Uploading to S3...');
     const command = new PutObjectCommand({
       Bucket: bucketName,
@@ -97,52 +129,43 @@ export const uploadPropertyImagesController = async (req: Request, res: Response
       ContentType: contentType,
     });
 
-    await s3.send(command);
+    await retryOperation(() => s3.send(command));
     console.log('S3 upload successful');
 
     // Generate the public URL
     const url = `https://${bucketName}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-    console.log('Generated public URL:', url);
 
-    // Classify the image if requested
-    let classificationResult = null;
+    // If classification is requested
     if (forClassify === 'true') {
       console.log('Classifying image...');
-      classificationResult = await imageClassificationService.predictRoom(imageBuffer);
+      const classificationResult = await imageClassificationService.classifyImage(imageBuffer);
       console.log('Classification result:', classificationResult);
-    }
 
-    // Save the image to the database
-    console.log('Saving to database...');
-    const propertyImageRepo = AppDataSource.getRepository(PropertyImages);
-    const propertyImage = new PropertyImages();
-    propertyImage.imageKey = key;
-    propertyImage.presignedUrl = url;
-    if (classificationResult) {
-      propertyImage.imgClassifications = classificationResult.label;
-      const confidence = Number(classificationResult.confidence);
-      if (!isNaN(confidence)) {
-        propertyImage.accurencyPercent = confidence;
-      }
+      return res.status(200).json({
+        status: 'success',
+        message: 'Image uploaded and classified successfully',
+        data: {
+          url,
+          key,
+          imgClassifications: classificationResult.classification,
+          accurencyPercent: classificationResult.confidence.toString(),
+        },
+      });
     }
-    const image = await propertyImageRepo.save(propertyImage);
-    console.log('Database save successful:', image);
 
     return res.status(200).json({
       status: 'success',
-      message: 'Image uploaded and processed successfully',
+      message: 'Image uploaded successfully',
       data: {
         url,
         key,
-        imgClassifications: image.imgClassifications,
-        accurencyPercent: image.accurencyPercent?.toString(),
       },
     });
   } catch (error) {
-    console.error('Error processing image:', error);
+    console.error('Error uploading image:', error);
     return res.status(500).json({
       status: 'error',
-      message: error instanceof Error ? error.message : 'Server error',
+      message: error instanceof Error ? error.message : 'Internal Server Error',
     });
   }
 };
