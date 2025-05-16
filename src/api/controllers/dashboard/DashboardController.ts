@@ -146,8 +146,8 @@ export const analyticProperty = async (req: PropertyRequest, res: Response) => {
 // create saved property
 export const createSavedProperty = async (req: Request, res: Response) => {
   try {
-    const { propertyId, ownerId, userId } = req.body;
-    if (!propertyId || !ownerId || !userId) {
+    const { propertyId, userId } = req.body;
+    if (!propertyId || !userId) {
       return res.status(400).json({ message: 'Please provide all required fields' });
     }
 
@@ -166,7 +166,7 @@ export const createSavedProperty = async (req: Request, res: Response) => {
 
     const savedProperty = savedPropertyRepo.create({
       propertyId,
-      ownerId,
+      ownerId: propertyDetails.userId,
       userId,
     });
     const newProperty = await savedPropertyRepo.save(savedProperty);

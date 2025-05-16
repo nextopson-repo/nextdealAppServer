@@ -162,17 +162,23 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
           await propertyImagesRepo.remove(existingProperty.propertyImages);
         }
 
-        // Create new property images
-        const propertyImages = imageKeys.map(imgData => {
-          const propertyImage = new PropertyImages();
-          propertyImage.imageKey = imgData.imageKey;
-          propertyImage.imgClassifications = imgData.imgClassifications;
-          propertyImage.accurencyPercent = imgData.accurencyPercent;
-          propertyImage.property = existingProperty;
-          return propertyImage;
-        });
+        // Create new property images (only with valid imageKey)
+        const propertyImages = imageKeys
+          .filter(imgData => imgData.imageKey)
+          .map(imgData => {
+            const propertyImage = new PropertyImages();
+            propertyImage.imageKey = imgData.imageKey;
+            propertyImage.imgClassifications = imgData.imgClassifications;
+            propertyImage.accurencyPercent = imgData.accurencyPercent;
+            propertyImage.property = existingProperty;
+            return propertyImage;
+          });
 
-        existingProperty.propertyImages = await propertyImagesRepo.save(propertyImages);
+        if (propertyImages.length > 0) {
+          existingProperty.propertyImages = await propertyImagesRepo.save(propertyImages);
+        } else {
+          existingProperty.propertyImages = [];
+        }
       }
 
       const updatedProperty = await propertyRepo.save(existingProperty);
@@ -254,16 +260,20 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
 
     // Create property images if provided
     if (imageKeys && imageKeys.length > 0) {
-      const propertyImages = imageKeys.map(imgData => {
-        const propertyImage = new PropertyImages();
-        propertyImage.imageKey = imgData.imageKey;
-        propertyImage.imgClassifications = imgData.imgClassifications;
-        propertyImage.accurencyPercent = imgData.accurencyPercent;
-        propertyImage.property = savedProperty;
-        return propertyImage;
-      });
+      const propertyImages = imageKeys
+        .filter(imgData => imgData.imageKey)
+        .map(imgData => {
+          const propertyImage = new PropertyImages();
+          propertyImage.imageKey = imgData.imageKey;
+          propertyImage.imgClassifications = imgData.imgClassifications;
+          propertyImage.accurencyPercent = imgData.accurencyPercent;
+          propertyImage.property = savedProperty;
+          return propertyImage;
+        });
 
-      await propertyImagesRepo.save(propertyImages);
+      if (propertyImages.length > 0) {
+        await propertyImagesRepo.save(propertyImages);
+      }
     }
 
     // Generate title and description for new property

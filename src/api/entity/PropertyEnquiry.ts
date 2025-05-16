@@ -12,8 +12,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Address } from './Address';
-import { PropertyImages } from './PropertyImages';
 import { Property } from './Property';
 
 @Entity('PropertyEnquiry')

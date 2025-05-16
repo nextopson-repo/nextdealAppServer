@@ -1,4 +1,4 @@
-import { getAllProperties} from '@/api/controllers/property/PropertyController';
+import { getAllProperties, getPropertyById} from '@/api/controllers/property/PropertyController';
 import { searchProperty } from '@/api/controllers/property/PropertyController';
 import { createOrUpdateProperty } from '@/api/controllers/property/createOrUpdateProperty';
 import { Router } from 'express';
@@ -20,6 +20,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // router.use(authenticate);
 
 router.post('/create-update', createOrUpdateProperty);
+router.post('/get-property-by-id', getPropertyById);
 router.post('/getAll', getAllProperties);
 router.post('/search-property', searchProperty);
 router.post('/trending-property', trendingProperty);

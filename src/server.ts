@@ -32,6 +32,9 @@ import { RepublishProperty } from './api/entity/RepublishProperties';
 import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
 import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; // Ensure this path is correct
 import { PropertyImages } from './api/entity/PropertyImages';
+import { Location } from './api/entity/Location';
+import { initializeSocket } from './socket';
+import { PropertyEnquiry } from './api/entity/PropertyEnquiry';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -43,10 +46,16 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages],
+  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages, Location, PropertyEnquiry],
   synchronize: true,
   logging: false,
   entitySkipConstructor: true,
+  connectTimeout: 60000, // Increase connection timeout to 60 seconds
+  extra: {
+    connectionLimit: 10,  // Limit connections to prevent overloading
+    connectTimeout: 60000, // MySQL specific timeout option
+    acquireTimeout: 60000 // MySQL specific acquire timeout 
+  }
 };
 
 const AppDataSource = new DataSource(dataSourceOptions);
@@ -67,45 +76,68 @@ app.use(
 // Initialize the DataSource before setting up routes
 AppDataSource.initialize()
   .then(() => {
-    logger.info('Database connected successfully');
-
-    // Set the application to trust the reverse proxy
-    app.set('trust proxy', true);
-
-    // Middlewares
-    app.use(express.json());
-    app.use(cookieParser());
-    app.use(
-      cors({
-        origin: function (origin, callback) {
-          callback(null, true);
-        },
-        credentials: true,
-      })
-    );
-    app.use(helmet());
-    app.use(rateLimiter);
-
-
-    // Request logging
-    app.use(requestLogger);
-
-    // Routes mounting
-    app.use('/api/v1/auth', authRoutes);
-    app.use('/api/v1/s3', s3bucket);
-    app.use('/api/v1/property', property);
-    app.use("/api/v1/profile", profile)
-    app.use("/api/v1/dropdown", DropDownRouter)
-    app.use('/api/v1/kyc', kycProcessRoutes);
-    app.use("/api/v1/dashboard", DashboardRoute);
-    app.use("/api/v1/republish", republishRoutes)
-    // Error handlers
-    app.use(errorHandler());
+    logger.info('Database connection has been established successfully.');
   })
   .catch((error) => {
-    logger.error('Error during database initialization:', error);
-    process.exit(1);
+    logger.error('Error during Data Source initialization:', error);
+    if (error.code === 'ETIMEDOUT') {
+      logger.error('Database connection timed out. Check network connectivity to RDS instance and security group settings.');
+    } else if (error.code === 'ECONNREFUSED') {
+      logger.error('Database connection refused. Make sure the database server is running and accepting connections.');
+    }
   });
 
-export { app, AppDataSource, logger };
+// Set the application to trust the reverse proxy
+app.set('trust proxy', true);
+
+// Middlewares
+app.use(express.json());
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      callback(null, true);
+    },
+    credentials: true,
+  })
+);
+app.use(helmet());
+// app.use(rateLimiter);
+app.use(requestLogger);
+app.use(express.json());;
+
+// Routes mounting
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/s3', s3bucket);
+app.use('/api/v1/property', property);
+app.use("/api/v1/profile", profile)
+app.use("/api/v1/dropdown", DropDownRouter)
+app.use('/api/v1/kyc', kycProcessRoutes);
+app.use("/api/v1/dashboard", DashboardRoute);
+app.use("/api/v1/republish", republishRoutes)
+app.get('/', (req, res) => {
+  res.send('Welcome to nextdeal');
+});
+
+// Error handlers
+app.use(errorHandler());
+
+// Initialize HTTP server and WebSocket
+const httpServer = initializeSocket(app);
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  // Exit with error code to trigger nodemon restart
+  process.exit(1);
+});
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Exit with error code to trigger nodemon restart
+  process.exit(1);
+});
+
+export { app, AppDataSource, logger, httpServer };
 

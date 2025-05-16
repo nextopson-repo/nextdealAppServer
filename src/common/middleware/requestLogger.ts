@@ -4,6 +4,7 @@ import { IncomingMessage, ServerResponse } from 'http';
 import { getReasonPhrase, StatusCodes } from 'http-status-codes';
 import { LevelWithSilent } from 'pino';
 import { CustomAttributeKeys, Options, pinoHttp } from 'pino-http';
+import { ParsedQs } from 'qs';
 
 import { env } from '@/common/utils/envConfig';
 
@@ -17,22 +18,35 @@ enum LogLevel {
   Silent = 'silent',
 }
 
+type RequestLog = {
+  method: string;
+  url: string;
+  headers: Record<string, string | string[] | undefined>;
+  query: ParsedQs;
+  body: any;
+  ip: string | undefined;
+};
+
+type ResponseLog = {
+  statusCode: number;
+};
+
 type PinoCustomProps = {
-  request: Request;
-  response: Response;
+  request: RequestLog;
+  response: ResponseLog;
   error: Error;
   responseBody: unknown;
 };
 
 const requestLogger = (options?: Options): RequestHandler[] => {
   const pinoOptions: Options = {
-    enabled: env.isProduction,
+    enabled: true,
     customProps: customProps as unknown as Options['customProps'],
-    redact: [],
+    redact: ['headers.authorization', 'headers.cookie'],
     genReqId,
     customLogLevel,
     customSuccessMessage,
-    customReceivedMessage: (req) => `request received: ${req.method}`,
+    customReceivedMessage: (req) => `request received: ${req.method} ${req.url}`,
     customErrorMessage: (_req, res) => `request errored with status code: ${res.statusCode}`,
     customAttributeKeys,
     ...options,
@@ -48,35 +62,41 @@ const customAttributeKeys: CustomAttributeKeys = {
 };
 
 const customProps = (req: Request, res: Response): PinoCustomProps => ({
-  request: req,
-  response: res,
+  request: {
+    method: req.method,
+    url: req.url,
+    headers: req.headers,
+    query: req.query,
+    body: req.body,
+    ip: req.ip
+  },
+  response: {
+    statusCode: res.statusCode
+  },
   error: res.locals.err,
   responseBody: res.locals.responseBody,
 });
 
 const responseBodyMiddleware: RequestHandler = (_req, res, next) => {
-  const isNotProduction = !env.isProduction;
-  if (isNotProduction) {
-    const originalSend = res.send;
-    res.send = function (content) {
-      res.locals.responseBody = content;
-      res.send = originalSend;
-      return originalSend.call(res, content);
-    };
-  }
+  const originalSend = res.send;
+  res.send = function (content) {
+    res.locals.responseBody = content;
+    res.send = originalSend;
+    return originalSend.call(res, content);
+  };
   next();
 };
 
 const customLogLevel = (_req: IncomingMessage, res: ServerResponse<IncomingMessage>, err?: Error): LevelWithSilent => {
   if (err || res.statusCode >= StatusCodes.INTERNAL_SERVER_ERROR) return LogLevel.Error;
   if (res.statusCode >= StatusCodes.BAD_REQUEST) return LogLevel.Warn;
-  if (res.statusCode >= StatusCodes.MULTIPLE_CHOICES) return LogLevel.Silent;
+  if (res.statusCode >= StatusCodes.MULTIPLE_CHOICES) return LogLevel.Info;
   return LogLevel.Info;
 };
 
 const customSuccessMessage = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {
   if (res.statusCode === StatusCodes.NOT_FOUND) return getReasonPhrase(StatusCodes.NOT_FOUND);
-  return `${req.method} completed`;
+  return `${req.method} ${req.url} completed`;
 };
 
 const genReqId = (req: IncomingMessage, res: ServerResponse<IncomingMessage>) => {

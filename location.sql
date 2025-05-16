@@ -194,3 +194,20 @@ VALUES
 (REPLACE(UUID(), '-', ''), 'delhi', 'delhi', 'Commonwealth Games Village', 'system', 'system', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)),
 (REPLACE(UUID(), '-', ''), 'delhi', 'delhi', 'Connaught Place', 'system', 'system', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)),
 (REPLACE(UUID(), '-', ''), 'delhi', 'delhi', 'DND Flyover Area', 'system', 'system', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6));
+
+
+-- Data from the image
+INSERT INTO Location (id, state, stateImageUrl, city, cityImageUrl, locality, createdBy, updatedBy, createdAt, updatedAt)
+VALUES
+  (REPLACE(UUID(), '-', ''), 'haryana', NULL, 'Gurgaon', NULL, 'Aath Marla', 'system', 'system', NOW(6), NOW(6)),
+  (REPLACE(UUID(), '-', ''), 'haryana', NULL, 'Gurgaon', NULL, 'Acharya Puri', 'system', 'system', NOW(6), NOW(6)),
+  (REPLACE(UUID(), '-', ''), 'haryana', NULL, 'Gurgaon', NULL, 'Adarsh Nagar', 'system', 'system', NOW(6), NOW(6)),
+  (REPLACE(UUID(), '-', ''), 'haryana', NULL, 'Gurgaon', NULL, 'Airforce Station', 'system', 'system', NOW(6), NOW(6));
+
+-- Data from the provided object
+INSERT INTO Location (id, state, stateImageUrl, city, cityImageUrl, locality, createdBy, updatedBy, createdAt, updatedAt)
+VALUES
+  (REPLACE(UUID(), '-', ''), 'Madhya Pradesh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Upper_Lake%2C_Bhopal.jpg/800px-Upper_Lake%2C_Bhopal.jpg', 'Bhopal', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Upper_Lake%2C_Bhopal.jpg/800px-Upper_Lake%2C_Bhopal.jpg', 'MP Nagar', 'system', 'system', NOW(6), NOW(6)),
+  (REPLACE(UUID(), '-', ''), 'Madhya Pradesh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Upper_Lake%2C_Bhopal.jpg/800px-Upper_Lake%2C_Bhopal.jpg', 'Bhopal', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Upper_Lake%2C_Bhopal.jpg/800px-Upper_Lake%2C_Bhopal.jpg', 'Arera Colony', 'system', 'system', NOW(6), NOW(6)),
+  (REPLACE(UUID(), '-', ''), 'Madhya Pradesh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Upper_Lake%2C_Bhopal.jpg/800px-Upper_Lake%2C_Bhopal.jpg', 'Indore', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Rajwada%2C_Indore.jpg/800px-Rajwada%2C_Indore.jpg', 'Vijay Nagar', 'system', 'system', NOW(6), NOW(6)),
+  (REPLACE(UUID(), '-', ''), 'Madhya Pradesh', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b2/Upper_Lake%2C_Bhopal.jpg/800px-Upper_Lake%2C_Bhopal.jpg', 'Indore', 'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Rajwada%2C_Indore.jpg/800px-Rajwada%2C_Indore.jpg', 'Saket', 'system', 'system', NOW(6), NOW(6));

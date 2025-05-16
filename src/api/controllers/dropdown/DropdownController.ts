@@ -4,6 +4,25 @@ import { getRepository } from 'typeorm';
 import { DropdownOptions } from '@/api/entity/DropdownOptions';
 import { AppDataSource } from '@/server';
 import { Location } from '@/api/entity/Location';
+
+interface City {
+  name: string;
+  image: string;
+  isPopular: boolean;
+  localities: string[];
+}
+
+interface State {
+  state: string;
+  image: string;
+  isPopular: boolean;
+  cities: { [key: string]: City };
+}
+
+interface GroupedLocations {
+  [key: string]: State;
+}
+
 const app = express();
 app.use(express.json());
 
@@ -11,10 +30,47 @@ app.use(express.json());
 export const uploadLocationDropdown = async (_req: Request, res: Response) => {
   try {
     const dropdownRepo = AppDataSource.getRepository(Location);
-    const options = await dropdownRepo.find({
-      order: { id: 'ASC' }
+    const locations = await dropdownRepo.find({
+      order: { state: 'ASC', city: 'ASC' }
     });
-    res.status(200).json(options);
+
+    // Group locations by state
+    const groupedLocations = locations.reduce((acc: GroupedLocations, location) => {
+      if (!acc[location.state]) {
+        acc[location.state] = {
+          state: location.state,
+          image: location.stateImageUrl || '',
+          isPopular: true,
+          cities: {}
+        };
+      }
+
+      if (!acc[location.state].cities[location.city]) {
+        acc[location.state].cities[location.city] = {
+          name: location.city,
+          image: location.cityImageUrl || '',
+          isPopular: true,
+          localities: []
+        };
+      }
+
+      if (location.locality) {
+        acc[location.state].cities[location.city].localities.push(location.locality);
+      }
+
+      return acc;
+    }, {});
+
+    // Convert to array format and sort localities
+    const formattedLocations = Object.values(groupedLocations).map((state) => ({
+      ...state,
+      cities: Object.values(state.cities).map((city) => ({
+        ...city,
+        localities: [...new Set(city.localities)].sort()
+      }))
+    }));
+
+    res.status(200).json(formattedLocations);
   } catch (error) {
     res.status(500).json({ message: 'Error retrieving location options', error });
   }

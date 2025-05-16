@@ -7,22 +7,24 @@ import {
     BeforeInsert,
     BeforeUpdate,
     JoinColumn,
-  } from 'typeorm';
-  import { Property } from './Property';
+    CreateDateColumn,
+    UpdateDateColumn
+} from 'typeorm';
+import { Property } from './Property';
 import { randomBytes } from 'crypto';
   
-  @Entity('Address')
-  export class Address extends BaseEntity {
+@Entity('Address')
+export class Address extends BaseEntity {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
   
-    @Column({ type: 'varchar', nullable:true })
+    @Column({ type: 'varchar', nullable: true })
     state!: string;
   
-    @Column({ type: 'varchar', nullable:true })
+    @Column({ type: 'varchar', nullable: true })
     city!: string;
   
-    @Column({ type: 'varchar', nullable:true }) 
+    @Column({ type: 'varchar', nullable: true }) 
     locality!: string;
   
     @OneToOne(() => Property, (property) => property.address)
@@ -35,30 +37,25 @@ import { randomBytes } from 'crypto';
     @Column({ type: 'varchar', default: 'system' })
     updatedBy!: string;
     
-    @Column({
-      type: 'timestamp',
-      default: () => 'CURRENT_TIMESTAMP(6)',
-      precision: 6,
-    })
+    @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
     createdAt!: Date;
     
-    @Column({
-      type: 'timestamp',
-      default: () => 'CURRENT_TIMESTAMP(6)',
-      onUpdate: 'CURRENT_TIMESTAMP(6)',
-      precision: 6,
+    @UpdateDateColumn({
+        type: 'timestamp',
+        default: () => 'CURRENT_TIMESTAMP(6)',
+        onUpdate: 'CURRENT_TIMESTAMP(6)',
+        precision: 6,
     })
     updatedAt!: Date;
     
     @BeforeInsert()
     async generateUUID() {
-      this.id = randomBytes(16).toString('hex');
+        this.id = randomBytes(16).toString('hex');
     }
     
     @BeforeUpdate()
     async updateTimestamp() {
-      // Optional: Custom update logic
+        // Optional: Custom update logic
     }
-    
-  }
+}
   

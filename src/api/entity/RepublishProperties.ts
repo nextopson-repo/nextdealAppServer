@@ -24,6 +24,13 @@ import { randomBytes } from 'crypto';
     @Column('uuid')
     republisherId!: string;
     
+    @Column({ 
+      type: 'enum', 
+      enum: ['Accepted', 'Rejected', 'Pending'],
+      default: 'Pending' 
+    })
+    status!: 'Accepted' | 'Rejected' | 'Pending';
+    
     @Column({ type: 'varchar', default: 'system' })
     createdBy!: string;
     

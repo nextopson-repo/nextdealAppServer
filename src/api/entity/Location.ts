@@ -14,9 +14,16 @@ import {
   
     @Column({ type: 'varchar' })
     state!: string;
-  
+
+    @Column({ type: 'varchar', nullable: true })
+    stateImageUrl!: string;
+
+
     @Column({ type: 'varchar' })
     city!: string;
+
+    @Column({ type: 'varchar', nullable: true })
+    cityImageUrl!: string;
 
     @Column({ type: 'varchar' })
     locality!: string;

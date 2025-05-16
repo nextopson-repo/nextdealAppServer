@@ -6,7 +6,7 @@ import { ErrorHandler } from '@/api/middlewares/error';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { generatePresignedUrl } from '@/api/controllers/s3/awsControllers';
 import { Address } from '@/api/entity/Address';
-import { In } from 'typeorm';
+import { In, Between } from 'typeorm';
 
 // Custom type for request user
 type RequestUser = {
@@ -96,14 +96,25 @@ type PropertyResponseType = {
 // Helper to map PropertyImages to PropertyImageWithUrl (with presigned URLs)
 async function mapPropertyImages(images: PropertyImages[]): Promise<PropertyImageWithUrl[]> {
   return Promise.all(
-    images.map(async (img) => ({
-      id: img.id,
-      imageKey: img.imageKey,
-      presignedUrl: img.presignedUrl || await generatePresignedUrl(img.imageKey),
-      imgClassifications: img.imgClassifications as PropertyImageWithUrl['imgClassifications'],
-      accurencyPercent: img.accurencyPercent,
-    }))
+    (images || [])
+      .filter(img => img.imageKey)
+      .map(async (img) => ({
+        id: img.id,
+        imageKey: img.imageKey,
+        presignedUrl: img.presignedUrl || await generatePresignedUrl(img.imageKey),
+        imgClassifications: img.imgClassifications as PropertyImageWithUrl['imgClassifications'],
+        accurencyPercent: img.accurencyPercent,
+      }))
   );
+}
+
+// Consistent mapping for a single property
+async function mapPropertyResponse(property: Property): Promise<PropertyResponseType> {
+  const propertyImages = await mapPropertyImages(property.propertyImages || []);
+  return {
+    ...property,
+    propertyImages,
+  };
 }
 
 export const getUserProperties = async (req: Request, res: Response, next: NextFunction) => {
@@ -111,7 +122,7 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
     const { userId } = req.body;
 
     if (!userId) {
-      throw new ErrorHandler('User ID is required', 400);
+      return res.status(400).json({ message: 'User ID is required' });
     }
 
     const propertyRepo = AppDataSource.getRepository(Property);
@@ -124,16 +135,12 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
     });
 
     if (!properties || properties.length === 0) {
-      throw new ErrorHandler('No properties found for this user', 404);
+      return res.status(404).json({ message: 'No properties found for this user' });
     }
 
     const propertiesWithUrls = await Promise.all(
       properties.map(async (property) => {
-        const propertyImages = await mapPropertyImages(property.propertyImages || []);
-        const propertyResponse: PropertyResponseType = {
-          ...property,
-          propertyImages,
-        };
+        const propertyResponse = await mapPropertyResponse(property);
         return propertyResponse;
       })
     );
@@ -144,7 +151,7 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
       count: properties.length,
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -153,7 +160,7 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
     const { propertyId } = req.body;
 
     if (!propertyId) {
-      throw new ErrorHandler('Property ID is required', 400);
+      return res.status(400).json({ message: 'Property ID is required' });
     }
 
     const propertyRepo = AppDataSource.getRepository(Property);
@@ -163,15 +170,16 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
     });
 
     if (!property) {
-      throw new ErrorHandler('Property not found', 404);
+      return res.status(404).json({ message: 'Property not found' });
     }
 
+    const propertyResponse = await mapPropertyResponse(property);
     return res.status(200).json({
       message: 'Property retrieved successfully',
-      property,
+      property: propertyResponse,
     });
   } catch (error) {
-    next(error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -183,16 +191,12 @@ export const getAllProperties = async (req: Request, res: Response) => {
       relations: ['address', 'propertyImages'],
     });
     if (!properties || properties.length === 0) {
-      throw new ErrorHandler('No properties found', 404);
+      return res.status(404).json({ message: 'No properties found' });
     }
     // Process each property to add presigned URLs to images
     const propertiesWithUrls = await Promise.all(
       properties.map(async (property) => {
-        const propertyImages = await mapPropertyImages(property.propertyImages || []);
-        const propertyResponse: PropertyResponseType = {
-          ...property,
-          propertyImages,
-        };
+        const propertyResponse = await mapPropertyResponse(property);
         return propertyResponse;
       })
     );
@@ -201,7 +205,7 @@ export const getAllProperties = async (req: Request, res: Response) => {
       properties: propertiesWithUrls,
     });
   } catch (error) {
-    throw new ErrorHandler('Server error', 500);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
@@ -215,72 +219,135 @@ interface PropertySearch {
 }
 
 export const searchProperty = async (req: Request, res: Response) => {
-  const propertySearch: PropertySearch = req.body;
-  const { category, subCategory, state, city } = propertySearch;
+  const { 
+    subCategory = "All", 
+    state, 
+    city,
+    isSale,
+    furnishingType,
+    bhkTypes,
+    propertyTypes,
+    priceRange,
+    page = 1,
+    limit = 5,
+    sort = 'newest'
+  } = req.body;
+
   try {
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
-    const properties = await propertyRepo.find({
-      where: {
-        category,
-        subCategory,
-        address: {
-          ...(state && { state }),
-          ...(city && { city }),
-        },
-      },
-      relations: ['address', 'propertyImages'],
-    });
-    if (!properties || properties.length === 0){
-      throw new ErrorHandler('Property not found', 404);
+
+    // Build dynamic where clause
+    
+    const whereClause: any = {};
+
+    // Only add subCategory filter if it's not "All"
+    if (subCategory && subCategory !== 'All') {
+      whereClause.subCategory = subCategory;
     }
+    // Add filters only if they are provided
+    if (isSale !== undefined) {
+      whereClause.isSale = isSale;
+    }
+
+    if (furnishingType) {
+      whereClause.furnishing = furnishingType;
+    }
+
+    if (bhkTypes && bhkTypes.length > 0) {
+      whereClause.bhks = In(bhkTypes.map((bhk: string) => parseInt(bhk)));
+    }
+
+    if (propertyTypes && propertyTypes.length > 0) {
+      whereClause.subCategory = In(propertyTypes);
+    }
+
+    if (priceRange) {
+      whereClause.propertyPrice = Between(priceRange.min, priceRange.max);
+    }
+
+    // Add address filters if provided
+    if (state || city) {
+      whereClause.address = {};
+      if (state) whereClause.address.state = state;
+      if (city) whereClause.address.city = city;
+    }
+
+    // Calculate skip for pagination
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination
+    const totalCount = await propertyRepo.count({
+      where: whereClause,
+    });
+
+    // Get properties with pagination and sorting
+    const properties = await propertyRepo.find({
+      where: whereClause,
+      relations: ['address', 'propertyImages'],
+      skip: skip,
+      take: limit,
+      order: {
+        createdAt: sort === 'newest' ? 'DESC' : 'ASC'
+      }
+    });
+
+    if (!properties || properties.length === 0) {
+      return res.status(200).json({ 
+        message: 'No properties found',
+        property: [],
+        totalCount: 0,
+        currentPage: page,
+        totalPages: 0
+      });
+    }
+
     // Add owner information to properties
     const propertiesWithOwner = await Promise.all(
       properties.map(async (property) => {
-        const user = await userRepo.findOne({ where: { id: property.userId }, select: ['fullName'] });
+        const user = await userRepo.findOne({ 
+          where: { id: property.userId }, 
+          select: ['fullName', "mobileNumber",'email'] 
+        });
+        const propertyResponse = await mapPropertyResponse(property);
         return {
-          ...property,
-          ownerName: user ? user.fullName : 'Unknown',
+          ...propertyResponse,
+         ...user
         };
       })
     );
-    // Add presigned URLs to property images
-    const propertiesWithImages = await Promise.all(
-      propertiesWithOwner.map(async (property) => {
-        const propertyImages = await mapPropertyImages(property.propertyImages || []);
-        const propertyResponse: PropertyResponseType & { ownerName: string } = {
-          ...property,
-          propertyImages,
-        };
-        return propertyResponse;
-      })
-    );
+
     // Calculate total inventory value
     const inventoryValue = properties.reduce((total, property) => {
       return total + (property.propertyPrice || 0);
     }, 0);
+
     return res.status(200).json({
-      message: 'Property retrieved successfully',
-      property: propertiesWithImages,
+      message: 'Properties retrieved successfully',
+      property: propertiesWithOwner,
       inventoryValue: inventoryValue.toString(),
+      totalCount,
+      currentPage: page,
+      totalPages: Math.ceil(totalCount / limit),
+      hasMore: skip + properties.length < totalCount
     });
   } catch (error) {
-    throw new ErrorHandler('server error', 500);
+    console.error('Error in searchProperty:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
 export const trendingProperty = async (req: Request, res: Response) => {
   try {
-    const { category, subCategory } = req.body;
-    if (!category || !subCategory) {
-      throw new ErrorHandler('Category and subCategory are required', 400);
+    const {  subCategory } = req.body;
+    if (!subCategory) {
+      return res.status(400).json({ message: 'subCategory is required' });
     }
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
     // Get properties with their addresses using find
     const properties = await propertyRepo.find({
       where: {
-        category,
         subCategory,
       },
       relations: ['address', 'propertyImages'],
@@ -309,13 +376,11 @@ export const trendingProperty = async (req: Request, res: Response) => {
     // Process properties and generate image URLs in parallel
     const propertiesWithDetails = await Promise.all(
       properties.map(async (property) => {
-        const propertyImages = await mapPropertyImages(property.propertyImages || []);
-        const propertyResponse = {
-          ...property,
+        const propertyResponse = await mapPropertyResponse(property);
+        return {
+          ...propertyResponse,
           ownerName: userMap.get(property.userId) || 'Unknown',
-          propertyImages,
         };
-        return propertyResponse;
       })
     );
     return res.status(200).json({
@@ -324,12 +389,11 @@ export const trendingProperty = async (req: Request, res: Response) => {
       properties: propertiesWithDetails,
     });
   } catch (error) {
-    throw new ErrorHandler('server error', 500);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
-//offering Property
-
+//offering Property controller
 export const offeringProperty = async (req: Request, res: Response) => {
   const { filter } = req.body;
   if (!filter) {
@@ -340,7 +404,9 @@ export const offeringProperty = async (req: Request, res: Response) => {
   try {
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
-    const existingProperties = await propertyRepo.find({
+    const existingProperties = filter == 'All' ? await propertyRepo.find({
+      relations: ['address', 'propertyImages'],
+    }) : await propertyRepo.find({
       where: { subCategory: filter },
       relations: ['address', 'propertyImages'],
     });
@@ -351,11 +417,7 @@ export const offeringProperty = async (req: Request, res: Response) => {
     }
     const propertiesWithUrls = await Promise.all(
       existingProperties.map(async (property) => {
-        const propertyImages = await mapPropertyImages(property.propertyImages || []);
-        const propertyResponse: PropertyResponseType = {
-          ...property,
-          propertyImages,
-        };
+        const propertyResponse = await mapPropertyResponse(property);
         return propertyResponse;
       })
     );
@@ -377,6 +439,6 @@ export const offeringProperty = async (req: Request, res: Response) => {
       property: propertiesWithOwner,
     });
   } catch (error) {
-    throw new ErrorHandler('server error', 500);
+    return res.status(500).json({ message: 'Server error' });
   }
 };

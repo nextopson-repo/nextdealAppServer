@@ -4,11 +4,13 @@ import {
     Column,
     Entity,
     PrimaryGeneratedColumn,
-  } from 'typeorm';
-  import { randomBytes } from 'crypto';
+    CreateDateColumn,
+    UpdateDateColumn
+} from 'typeorm';
+import { randomBytes } from 'crypto';
 
-  @Entity('DropdownOptions')
-  export class DropdownOptions extends BaseEntity {
+@Entity('DropdownOptions')
+export class DropdownOptions extends BaseEntity {
     @PrimaryGeneratedColumn('uuid')
     id!: string;
   
@@ -30,13 +32,13 @@ import {
     @Column({ type: 'varchar' })
     locality!: string;
 
-    @Column({ type: 'varchar'})
+    @Column({ type: 'varchar' })
     furnishing!: string;
   
     @Column({ type: 'varchar' })
     propertyFacing!: string;
   
-    @Column({ type: 'varchar'})
+    @Column({ type: 'varchar' })
     viewsOfProperty!: string;
   
     @Column({ type: 'varchar' })
@@ -51,20 +53,20 @@ import {
     @Column({ type: 'varchar' })
     ageOfProperty!: string;
   
-    @Column({ type: 'varchar'})
+    @Column({ type: 'varchar' })
     reraApproved!: string;
   
     @Column({ type: 'varchar' })
     fencing!: string;
   
-    @Column({ type: 'varchar'})
+    @Column({ type: 'varchar' })
     soilType!: string;
   
     @Column({ type: 'varchar' })
     approachRoad!: string;
   
     @Column({ type: 'varchar' })
-    washrooms!:string;
+    washrooms!: string;
   
     @Column({ type: 'varchar' })
     parking!: string;
@@ -75,7 +77,7 @@ import {
     @Column({ type: 'varchar' })
     needFor!: string;
   
-    @Column({ type: 'varchar'})
+    @Column({ type: 'varchar' })
     furnishingType!: string;
   
     @Column({ type: 'varchar' })
@@ -90,14 +92,10 @@ import {
     @Column({ type: 'varchar', default: 'system' })
     updatedBy!: string;
   
-    @Column({
-      type: 'timestamp',
-      default: () => 'CURRENT_TIMESTAMP(6)',
-      precision: 6,
-    })
+    @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP(6)', precision: 6 })
     createdAt!: Date;
   
-    @Column({
+    @UpdateDateColumn({
       type: 'timestamp',
       default: () => 'CURRENT_TIMESTAMP(6)',
       onUpdate: 'CURRENT_TIMESTAMP(6)',
@@ -109,6 +107,6 @@ import {
     async generateUUID() {
       this.id = randomBytes(16).toString('hex');
     }
-  }
+}
 
 

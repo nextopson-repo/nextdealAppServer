@@ -18,7 +18,11 @@ export class UserKyc extends BaseEntity {
   @Column('uuid')
   userId!: string;
 
-  @Column({ type: 'varchar', default: "pending" })
+  @Column({ 
+    type: 'enum', 
+    enum: ['Success', 'Pending', 'Rejected'],
+    default: 'Pending' 
+  })
   kycStatus!: string;
 
   @Column({ type: 'varchar', nullable: true })
@@ -26,8 +30,6 @@ export class UserKyc extends BaseEntity {
 
   @Column({ type: 'boolean', default: false })
   rera!: boolean;
-
- 
 
   @Column({ type: 'varchar', nullable: true })
   reraIdState!: string;
