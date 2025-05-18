@@ -7,6 +7,7 @@ import { UserAuth } from '@/api/entity/UserAuth';
 import { generatePresignedUrl } from '@/api/controllers/s3/awsControllers';
 import { Address } from '@/api/entity/Address';
 import { In, Between } from 'typeorm';
+import { UserKyc } from '@/api/entity/userkyc';
 
 // Custom type for request user
 type RequestUser = {
@@ -157,7 +158,7 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
 
 export const getPropertyById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { propertyId } = req.body;
+    const { propertyId , userId } = req.body;
 
     if (!propertyId) {
       return res.status(400).json({ message: 'Property ID is required' });
@@ -173,10 +174,25 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
       return res.status(404).json({ message: 'Property not found' });
     }
 
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const user = await userRepo.findOne({
+      where: { id: property.userId },
+      select: ['fullName', 'mobileNumber', 'email', 'userProfileKey', "userType"],
+    });
+
+    const userKycRepo = AppDataSource.getRepository(UserKyc)
+    const userKyc = await userKycRepo.findOne({
+      where: { userId: property.userId },
+    });
+
     const propertyResponse = await mapPropertyResponse(property);
     return res.status(200).json({
       message: 'Property retrieved successfully',
       property: propertyResponse,
+      owner: user,
+      rera: userKyc?.rera,
+      connectionStatues: "Pending"
+
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
