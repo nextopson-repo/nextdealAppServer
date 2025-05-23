@@ -15,6 +15,9 @@ import {
 
 @Entity('UserAuth')
 export class UserAuth extends BaseEntity {
+    profilePictureUploadId(receiverId: any, arg1: string, profilePictureUploadId: any, arg3: string) {
+        throw new Error("Method not implemented.");
+    }
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -88,6 +91,8 @@ export class UserAuth extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   lastOTPAttempt!: Date | null;
+    firstName: any;
+    lastName: any;
 
   @BeforeInsert()
   async generateUUID() {
