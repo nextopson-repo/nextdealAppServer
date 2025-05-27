@@ -180,43 +180,43 @@ import { UserAuth } from '@/api/entity';
 // Send notification component 
  
 
-export const sendNotification = async (userId:string, message:string, mediakey:any, navigation:string) => {
-    
-    if (!userId || !message) {
-      return 'userId and message are required' ;
+export const sendNotification = async (req: Request, res: Response) => {
+  const { userId, message, mediakey } = req.body;
+  if (!userId || !message) {
+    return 'userId and message are required';
+  }
+
+  try {
+    const userRepos = AppDataSource.getRepository(UserAuth);
+    const user = await userRepos.findOne({ where: { id: userId } });
+
+    if (!user) {
+      return 'User ID is invalid or does not exist.';
     }
 
-    try {
-      const userRepos = AppDataSource.getRepository(UserAuth);
-      const user = await userRepos.findOne({ where: { id: userId } });
+    // Create a new notification
+    const notificationRepo = AppDataSource.getRepository(Notifications);
+    const notification = notificationRepo.create({
+      userId,
+      message,
+      mediaUrl: mediakey !== null || mediakey !== undefined ? mediakey : null,
 
-      if (!user) {
-        return  'User ID is invalid or does not exist.';
-      }
-     
-      // Create a new notification
-      const notificationRepo = AppDataSource.getRepository(Notifications);
-      const notification = notificationRepo.create({
-        userId,
-        message,
-        mediaUrl : (mediakey!==null || mediakey!==undefined)?mediakey:null,
-      
-        createdBy: "Live",
-        createdAt: new Date()
-      });
-      // Send notification via WebSocket
-      const io = getSocketInstance();
-      const noticeInfo = io.to(userId).emit("notifications", notification);
+      createdBy: 'Live',
+      createdAt: new Date(),
+    });
+    // Send notification via WebSocket
+    const io = getSocketInstance();
+    const noticeInfo = io.to(userId).emit('notifications', notification);
 
-      if (noticeInfo) {
-        await notificationRepo.save(notification); 
-        return  "Notification sent successfully" ;
-      }
-    } catch (error) {
-      console.error('Error sending notification:', error);
-      return 'Error sending notification' ;
+    if (noticeInfo) {
+      await notificationRepo.save(notification);
+      return 'Notification sent successfully';
     }
-  };
+  } catch (error) {
+    console.error('Error sending notification:', error);
+    return 'Error sending notification';
+  }
+};
 
   // delete notification component
   export const deleteNotification = async (userId:string) => {
