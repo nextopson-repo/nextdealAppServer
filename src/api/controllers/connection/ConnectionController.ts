@@ -1,3 +1,4 @@
+import { formatTimestamp,  } from './../notification/socketNotificationController';
 import { UserAuth } from "@/api/entity";
 import { Connections } from "@/api/entity/Connection";
 import { AppDataSource } from "@/server";
@@ -41,10 +42,14 @@ export const sendConnectionRequest = async (req: Request, res: Response): Promis
 
     // Create a notification
     await sendNotification(
-      receiverId,
-      `${requester?.firstName} ${requester?.lastName} Sent you a connection Request`,
-      requester?.profilePictureUploadId,
-      `/settings/ManageConnections`
+      {
+        body: {
+          userId: receiverId,
+          message: `${requester?.firstName} ${requester?.lastName} Sent you a connection Request`,
+          mediakey: requester?.profilePictureUploadId
+        }
+      } as Request,
+      res
     );
 
     return res.status(201).json({
@@ -88,10 +93,14 @@ export const updateConnectionStatus = async (req: Request, res: Response): Promi
 
     // Create a notification
     const notification = await sendNotification(
-      connection.requester.id,
-      `${connection.receiver.firstName} ${connection.receiver.lastName} ${data?.status} your connection request`,
-      connection?.receiver?.profilePictureUploadId,
-      `/settings/ManageConnections`
+      {
+        body: {
+          userId: connection.requesterId,
+          message: `${connection.receiver.firstName} ${connection.receiver.lastName} ${data?.status} your connection request`,
+          mediakey: connection?.receiver?.profilePictureUploadId
+        }
+      } as Request,
+      res
     );
     if (notification) {
       return res.status(200).json({ message: `Connection ${status} successfully.`, data });
@@ -128,7 +137,7 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
 
     const users = await userRepository.find({
       where: { id: In(userIds) },
-      select: ['id', 'firstName', 'lastName', 'profilePictureUploadId', 'userRole'],
+      select: ['id', 'firstName', 'lastName', 'profilePictureUploadId'],
     });
 
     if (!users || users.length === 0) {
@@ -161,7 +170,7 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
           userId: user?.id,
           firstName: user?.firstName,
           lastName: user?.lastName,
-          userRole: user?.userRole,
+         // userRole: user?.userRole,
           profilePictureUrl: profilePictureUrl,
           meeted: connection.updatedAt ? formatTimestamp(connection.updatedAt) : formatTimestamp(connection.createdAt),
           mutual: isMutual,
@@ -227,7 +236,7 @@ export const getUserConnectionRequests = async (req: Request, res: Response) => 
 
     const users = await userRepository.find({
       where: { id: In(userIds) },
-      select: ['id', 'firstName', 'lastName', 'profilePictureUploadId', 'userRole'],
+      select: ['id', 'firstName', 'lastName', 'profilePictureUploadId'],
     });
 
     // Create a response with connection requests and their respective user details

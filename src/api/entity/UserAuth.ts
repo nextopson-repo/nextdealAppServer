@@ -15,9 +15,6 @@ import {
 
 @Entity('UserAuth')
 export class UserAuth extends BaseEntity {
-    profilePictureUploadId(receiverId: any, arg1: string, profilePictureUploadId: any, arg3: string) {
-        throw new Error("Method not implemented.");
-    }
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
@@ -57,6 +54,9 @@ export class UserAuth extends BaseEntity {
   @Column({ type: 'boolean', default: false })
   isMobileVerified!: boolean;
 
+  @Column({ type: 'varchar', nullable: true })
+  profilePictureUploadId?: string;
+
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
 
@@ -91,8 +91,11 @@ export class UserAuth extends BaseEntity {
 
   @Column({ type: 'timestamp', nullable: true })
   lastOTPAttempt!: Date | null;
-    firstName: any;
-    lastName: any;
+
+  firstName: any;
+  lastName: any;
+  sentRequests: any;
+  receivedRequests: any;
 
   @BeforeInsert()
   async generateUUID() {
@@ -165,7 +168,7 @@ export class UserAuth extends BaseEntity {
   incrementFailedLoginAttempts(): void {
     this.failedLoginAttempts += 1;
     this.lastLoginAttempt = new Date();
-    
+
     if (this.failedLoginAttempts >= 5) {
       this.lockAccount();
     }
@@ -174,7 +177,7 @@ export class UserAuth extends BaseEntity {
   incrementFailedOTPAttempts(): void {
     this.failedOTPAttempts += 1;
     this.lastOTPAttempt = new Date();
-    
+
     if (this.failedOTPAttempts >= 3) {
       this.lockAccount(5); // Lock for 5 minutes after 3 failed OTP attempts
     }

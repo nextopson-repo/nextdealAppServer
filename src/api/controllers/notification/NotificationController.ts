@@ -51,25 +51,6 @@ export const createNotification = async (req: Request, res: Response) => {
   }
 };
 
-//markread
-
-// export const markAsRead = async (req: Request, res: Response) => {
-//   const { notificationId } = req.body;
-
-//   try {
-//     const notificationRepository = AppDataSource.getRepository(Notifications);
-//     const notification = await notificationRepository.findOneBy({ id: notificationId });
-//     if (!notificationID) {
-//       return res.status(404).json({ success: false, message: 'Notification not found' });
-//     }
-//     notification.isRead = true;
-//     await notificationRepository.save(notification);
-//     return res.status(200).json({ success: true, notification });
-//   } catch (error) {
-//     console.error('Error marking notification as read:', error);
-//     res.status(500).json({ success: false, message: 'Internal server error' });
-//   }
-// };
 
 
 export const markAsRead = async (req: Request, res: Response) => {
