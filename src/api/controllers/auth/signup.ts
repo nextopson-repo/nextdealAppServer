@@ -368,6 +368,8 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
             userType: user.userType,
             isEmailVerified: user.isEmailVerified,
             isMobileVerified: user.isMobileVerified,
+            profilePhoto: user.userProfileKey,
+
           },
           isFullyVerified,
           token,
