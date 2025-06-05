@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import { pino } from 'pino';
 import swaggerUi from 'swagger-ui-express';
 import { DataSource, DataSourceOptions } from 'typeorm';
+import * as tf from '@tensorflow/tfjs-node';
+
 // import fileUpload from 'express-fileupload'; // Add this import
 
 import errorHandler from '@/common/middleware/errorHandler';
@@ -29,12 +31,18 @@ import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 
-import DashboardRoute from "./api/routes/dashboardRoutes/DashboardRoutes"
+import DashboardRoute from './api/routes/dashboardRoutes/DashboardRoutes';
 import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; // Ensure this path is correct
 import { PropertyImages } from './api/entity/PropertyImages';
 import { Location } from './api/entity/Location';
 import { initializeSocket } from './socket';
 import { PropertyEnquiry } from './api/entity/PropertyEnquiry';
+import { Notifications } from './api/entity/Notifications';
+import NotificationRoutes from './api/routes/notificationsRoutes/NotificationRoutes';
+
+import ConnectionRoutes from './api/routes/connection/ConnectionRoutes';
+import { Connections } from './api/entity/Connection';
+import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNotificationRoute'
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -46,16 +54,31 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth, Property, Address, UserCredibility, SavedProperty, PropertyRequirement, DropdownOptions, UserKyc, RepublishProperty, PropertyImages, Location, PropertyEnquiry],
-  synchronize: true,
+  entities: [
+    UserAuth,
+    Property,
+    Address,
+    UserCredibility,
+    SavedProperty,
+    PropertyRequirement,
+    DropdownOptions,
+    UserKyc,
+    RepublishProperty,
+    PropertyImages,
+    Location,
+    PropertyEnquiry,
+    Notifications,
+    Connections,
+  ],
+  synchronize: false,
   logging: false,
   entitySkipConstructor: true,
   connectTimeout: 60000, // Increase connection timeout to 60 seconds
   extra: {
-    connectionLimit: 10,  // Limit connections to prevent overloading
+    connectionLimit: 10, // Limit connections to prevent overloading
     connectTimeout: 60000, // MySQL specific timeout option
-    acquireTimeout: 60000 // MySQL specific acquire timeout 
-  }
+    acquireTimeout: 60000, // MySQL specific acquire timeout
+  },
 };
 
 const AppDataSource = new DataSource(dataSourceOptions);
@@ -81,7 +104,9 @@ AppDataSource.initialize()
   .catch((error) => {
     logger.error('Error during Data Source initialization:', error);
     if (error.code === 'ETIMEDOUT') {
-      logger.error('Database connection timed out. Check network connectivity to RDS instance and security group settings.');
+      logger.error(
+        'Database connection timed out. Check network connectivity to RDS instance and security group settings.'
+      );
     } else if (error.code === 'ECONNREFUSED') {
       logger.error('Database connection refused. Make sure the database server is running and accepting connections.');
     }
@@ -104,17 +129,21 @@ app.use(
 app.use(helmet());
 // app.use(rateLimiter);
 app.use(requestLogger);
-app.use(express.json());;
+app.use(express.json());
 
 // Routes mounting
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/s3', s3bucket);
 app.use('/api/v1/property', property);
-app.use("/api/v1/profile", profile)
-app.use("/api/v1/dropdown", DropDownRouter)
+app.use('/api/v1/profile', profile);
+app.use('/api/v1/dropdown', DropDownRouter);
 app.use('/api/v1/kyc', kycProcessRoutes);
-app.use("/api/v1/dashboard", DashboardRoute);
-app.use("/api/v1/republish", republishRoutes)
+app.use('/api/v1/dashboard', DashboardRoute);
+app.use('/api/v1/republish', republishRoutes);
+app.use('/api/v1/notification', NotificationRoutes);
+app.use('/api/v1/connection' , ConnectionRoutes);
+app.use('/api/v1/notification', SocketNotificationRoute);
+
 app.get('/', (req, res) => {
   res.send('Welcome to nextdeal');
 });
@@ -140,4 +169,3 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 export { app, AppDataSource, logger, httpServer };
-
