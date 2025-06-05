@@ -3,6 +3,7 @@ import { AppDataSource } from '@/server';
 import { Notifications } from '@/api/entity/Notifications';
 import { UserAuth } from '@/api/entity';
 import { generatePresignedUrl } from '../s3/awsControllers';
+import { getSocketInstance } from '@/socket';
 
 export const createNotification = async (req: Request, res: Response) => {
   const { userId, message, type } = req.body;
@@ -111,8 +112,8 @@ export const fetchNotifications = async (req: Request, res: Response) => {
 
     // Generate presigned URLs for media files if they exist
     for (let notification of notifications) {
-      if (notification.mediaUrl) {
-        notification.mediaUrl = await generatePresignedUrl(notification.mediaUrl);
+      if (notification.mediakey) {
+        notification.mediakey = await generatePresignedUrl(notification.mediakey);
       }
     }
 
@@ -120,5 +121,27 @@ export const fetchNotifications = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+
+// generate notification
+export const generateNotification = async (userId: string, message: string, mediakey: string, type: string) => {
+
+  const notificationRepo = AppDataSource.getRepository(Notifications);
+  const notification = notificationRepo.create({
+    userId,
+    message,
+    mediakey,
+    type,
+  });
+  await notification.save();
+
+  const io = getSocketInstance();
+  const noticeInfo = io.to(userId).emit('notifications', notification);
+  if (noticeInfo) {
+    return [notification, 'Notification sent successfully', 200];
+  } else {
+    return ['Failed to generate notification', 500];
   }
 };

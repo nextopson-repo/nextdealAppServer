@@ -21,13 +21,13 @@ export class Notifications extends BaseEntity {
   message!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  navigation!: string;
+  type!: string;
 
   @Column({ type: 'boolean', default: false })
   isRead!: boolean;
 
   @Column({ type: 'longtext', nullable: true })
-  mediaUrl!: string;
+  mediakey!: string;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
