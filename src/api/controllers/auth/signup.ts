@@ -171,6 +171,7 @@ const signupSchema = z.object({
     userType: z.enum(['Agent', 'Owner', 'EndUser', 'Investor'], {
       errorMap: () => ({ message: 'Invalid user type' }),
     }),
+    WorkingWithAgent: z.boolean().optional(),
   }),
 });
 
@@ -222,7 +223,7 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { fullName, mobileNumber, email, userType } = req.body;
+    const { fullName, mobileNumber, email, userType, WorkingWithAgent } = req.body;
 
     // Check if user already exists
     const userLoginRepository = queryRunner.manager.getRepository(UserAuth);
@@ -248,13 +249,13 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
 
     let userToSave: UserAuth;
     
-    
     if (existingUser && !verified) {
       // Update existing unverified user
       existingUser.email = email;
       existingUser.userType = userType;
       existingUser.fullName = fullName;
       existingUser.isMobileVerified = true;
+      existingUser.WorkingWithAgent = userType === 'Owner' ? WorkingWithAgent : true;
       userToSave = existingUser;
     } else {
       // Create new user
@@ -263,6 +264,7 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
       userToSave.mobileNumber = mobileNumber;
       userToSave.email = email;
       userToSave.userType = userType;
+      userToSave.WorkingWithAgent = userType === 'Owner' ? WorkingWithAgent : true;
     }
 
     // Generate OTPs

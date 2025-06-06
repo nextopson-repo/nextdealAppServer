@@ -6,8 +6,9 @@ import { ErrorHandler } from '@/api/middlewares/error';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { generatePresignedUrl } from '@/api/controllers/s3/awsControllers';
 import { Address } from '@/api/entity/Address';
-import { In, Between } from 'typeorm';
+import { In, Between, Not } from 'typeorm';
 import { UserKyc } from '@/api/entity/userkyc';
+import { authenticate } from '@/api/middlewares/auth/Authenticate';
 
 // Custom type for request user
 type RequestUser = {
@@ -121,22 +122,39 @@ async function mapPropertyResponse(property: Property): Promise<PropertyResponse
 export const getUserProperties = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { userId } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
 
     if (!userId) {
       return res.status(400).json({ message: 'User ID is required' });
     }
 
     const propertyRepo = AppDataSource.getRepository(Property);
+    
+    // Get total count
+    const totalCount = await propertyRepo.count({
+      where: { userId }
+    });
+
     const properties = await propertyRepo.find({
       where: { userId },
       relations: ['address', 'propertyImages'],
       order: {
         createdAt: 'DESC',
       },
+      skip,
+      take: Number(limit)
     });
 
     if (!properties || properties.length === 0) {
-      return res.status(404).json({ message: 'No properties found for this user' });
+      return res.status(200).json({ 
+        message: 'No properties found for this user',
+        properties: [],
+        totalCount: 0,
+        currentPage: Number(page),
+        totalPages: 0,
+        hasMore: false
+      });
     }
 
     const propertiesWithUrls = await Promise.all(
@@ -149,7 +167,10 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
     return res.status(200).json({
       message: 'Properties retrieved successfully',
       properties: propertiesWithUrls,
-      count: properties.length,
+      totalCount,
+      currentPage: Number(page),
+      totalPages: Math.ceil(totalCount / Number(limit)),
+      hasMore: skip + properties.length < totalCount
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -201,24 +222,52 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
 
 export const getAllProperties = async (req: Request, res: Response) => {
   try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    const userId = (req.user as RequestUser)?.id;
+    const userType = (req.user as RequestUser)?.userType;
+
     const propertyRepo = AppDataSource.getRepository(Property);
-    // Get all properties with their relations
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    
+    // Get total count
+    const totalCount = await propertyRepo.count();
+
+    // Get properties with pagination
     const properties = await propertyRepo.find({
-      relations: ['address', 'propertyImages'],
+      relations: ['address', 'propertyImages', 'user'],
+      skip,
+      take: Number(limit),
+      order: {
+        createdAt: 'DESC'
+      }
     });
+
     if (!properties || properties.length === 0) {
-      return res.status(404).json({ message: 'No properties found' });
+      return res.status(200).json({ 
+        message: 'No properties found',
+        properties: [],
+        totalCount: 0,
+        currentPage: Number(page),
+        totalPages: 0,
+        hasMore: false
+      });
     }
-    // Process each property to add presigned URLs to images
+
     const propertiesWithUrls = await Promise.all(
       properties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
         return propertyResponse;
       })
     );
+
     return res.status(200).json({
       message: 'Properties retrieved successfully',
       properties: propertiesWithUrls,
+      totalCount,
+      currentPage: Number(page),
+      totalPages: Math.ceil(totalCount / Number(limit)),
+      hasMore: skip + properties.length < totalCount
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -355,41 +404,53 @@ export const searchProperty = async (req: Request, res: Response) => {
 
 export const trendingProperty = async (req: Request, res: Response) => {
   try {
-    const {  subCategory } = req.body;
+    const { subCategory } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
     if (!subCategory) {
       return res.status(400).json({ message: 'subCategory is required' });
     }
+
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
-    // Get properties with their addresses using find
-    const properties = await propertyRepo.find({
-      where: {
-        subCategory,
-      },
-      relations: ['address', 'propertyImages'],
+
+    // Get total count
+    const totalCount = await propertyRepo.count({
+      where: { subCategory }
     });
+
+    // Get properties with pagination
+    const properties = await propertyRepo.find({
+      where: { subCategory },
+      relations: ['address', 'propertyImages'],
+      skip,
+      take: Number(limit),
+      order: {
+        createdAt: 'DESC'
+      }
+    });
+
     if (!properties.length) {
       return res.status(200).json({
         success: true,
         message: 'No properties found',
         properties: [],
+        totalCount: 0,
+        currentPage: Number(page),
+        totalPages: 0,
+        hasMore: false
       });
     }
-    // Get all unique user IDs
+
     const userIds = [...new Set(properties.map((p) => p.userId))];
-    // Fetch all users using find
     const users = await userRepo.find({
-      where: {
-        id: In(userIds),
-      },
-      select: {
-        id: true,
-        fullName: true,
-      },
+      where: { id: In(userIds) },
+      select: { id: true, fullName: true }
     });
-    // Create a map of user IDs to names for quick lookup
+
     const userMap = new Map(users.map((user) => [user.id, user.fullName]));
-    // Process properties and generate image URLs in parallel
+
     const propertiesWithDetails = await Promise.all(
       properties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
@@ -399,10 +460,15 @@ export const trendingProperty = async (req: Request, res: Response) => {
         };
       })
     );
+
     return res.status(200).json({
       success: true,
       message: 'Properties retrieved successfully',
       properties: propertiesWithDetails,
+      totalCount,
+      currentPage: Number(page),
+      totalPages: Math.ceil(totalCount / Number(limit)),
+      hasMore: skip + properties.length < totalCount
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -411,50 +477,114 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
 //offering Property controller
 export const offeringProperty = async (req: Request, res: Response) => {
-  const { filter } = req.body;
-  if (!filter) {
-    return res.status(400).json({
-      message: 'filter required',
-    });
-  }
   try {
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const userRepo = AppDataSource.getRepository(UserAuth);
-    const existingProperties = filter == 'All' ? await propertyRepo.find({
-      relations: ['address', 'propertyImages'],
-    }) : await propertyRepo.find({
-      where: { subCategory: filter },
-      relations: ['address', 'propertyImages'],
-    });
-    if (!existingProperties) {
+    const { filter } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    if (!filter) {
       return res.status(400).json({
-        message: 'filter not found',
+        success: false,
+        message: 'filter required',
       });
     }
+
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    
+    // Build where clause
+    let whereClause: any = {};
+    if (filter !== 'All') {
+      whereClause.subCategory = filter;
+    }
+    
+    // Get total count
+    const totalCount = await propertyRepo.count({
+      where: whereClause
+    });
+
+    // Get properties with pagination
+    const properties = await propertyRepo.find({
+      where: whereClause,
+      relations: ['address', 'propertyImages'],
+      skip,
+      take: Number(limit),
+      order: {
+        createdAt: 'DESC'
+      }
+    });
+
+    if (!properties || properties.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No properties found',
+        data: {
+          property: [],
+          totalCount: 0,
+          currentPage: Number(page),
+          totalPages: 0,
+          hasMore: false
+        }
+      });
+    }
+
+    // Map properties with presigned URLs
     const propertiesWithUrls = await Promise.all(
-      existingProperties.map(async (property) => {
-        const propertyResponse = await mapPropertyResponse(property);
-        return propertyResponse;
+      properties.map(async (property) => {
+        try {
+          const propertyResponse = await mapPropertyResponse(property);
+          return propertyResponse;
+        } catch (error) {
+          console.error('Error mapping property:', error);
+          return null;
+        }
       })
     );
-    // Add owner information to properties
+
+    // Filter out any null values from failed mappings
+    const validProperties = propertiesWithUrls.filter(property => property !== null);
+
+    // Get owner information for each property
     const propertiesWithOwner = await Promise.all(
-      propertiesWithUrls.map(async (property) => {
-        const user = await userRepo.findOne({
-          where: { id: property.userId },
-          select: ['fullName'],
-        });
-        return {
-          ...property,
-          ownerName: user ? user.fullName : 'Unknown',
-        };
+      validProperties.map(async (property) => {
+        try {
+          const user = await userRepo.findOne({
+            where: { id: property.userId },
+            select: ['fullName', 'userType'],
+          });
+          return {
+            ...property,
+            ownerName: user ? user.fullName : 'Unknown',
+            ownerType: user ? user.userType : 'Unknown'
+          };
+        } catch (error) {
+          console.error('Error getting owner info:', error);
+          return {
+            ...property,
+            ownerName: 'Unknown',
+            ownerType: 'Unknown'
+          };
+        }
       })
     );
+
     return res.status(200).json({
-      message: 'Property offered successfully',
-      property: propertiesWithOwner,
+      success: true,
+      message: 'Properties fetched successfully',
+      data: {
+        property: propertiesWithOwner,
+        totalCount,
+        currentPage: Number(page),
+        totalPages: Math.ceil(totalCount / Number(limit)),
+        hasMore: skip + properties.length < totalCount
+      }
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Error in offeringProperty:', error);
+    return res.status(500).json({ 
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };

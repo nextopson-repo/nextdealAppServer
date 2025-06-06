@@ -18,19 +18,14 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Apply authentication middleware to all property routes
 // router.use(authenticate);
-
 router.post('/create-update', createOrUpdateProperty);
 router.post('/get-property-by-id', getPropertyById);
 router.post('/getAll', getAllProperties);
 router.post('/search-property', searchProperty);
 router.post('/trending-property', trendingProperty);
 router.post('/create-update-requirement', CreateOrUpdateRequirement); 
-router.post('/offering-property', offeringProperty)
 router.post("/get-requirements", getUserRequirements)
-router.post(
-  "/upload-property-images",
-  upload.single('file'),
-  uploadPropertyImagesController
-);
+router.post("/upload-property-images", upload.single('file'), uploadPropertyImagesController);
 router.post('/get-user-properties', getUserProperties);
+router.post('/offering-property', offeringProperty)
 export default router;

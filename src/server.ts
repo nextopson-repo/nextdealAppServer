@@ -70,7 +70,7 @@ const dataSourceOptions: DataSourceOptions = {
     Notifications,
     Connections,
   ],
-  synchronize: false,
+  synchronize: true,
   logging: false,
   entitySkipConstructor: true,
   connectTimeout: 60000, // Increase connection timeout to 60 seconds

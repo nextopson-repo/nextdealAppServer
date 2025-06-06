@@ -27,6 +27,9 @@ export class UserAuth extends BaseEntity {
   @Column({ type: 'enum', enum: ['Agent', 'Owner', 'EndUser', 'Investor'], nullable: true })
   userType!: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
 
+  @Column({ type: 'boolean', default: true }) 
+  WorkingWithAgent!: boolean;
+
   @Column({ type: 'varchar', length: 255, unique: true, nullable: true })
   email!: string;
 
