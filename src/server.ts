@@ -70,7 +70,7 @@ const dataSourceOptions: DataSourceOptions = {
     Notifications,
     Connections,
   ],
-  synchronize: true,
+  synchronize: false,
   logging: false,
   entitySkipConstructor: true,
   connectTimeout: 60000, // Increase connection timeout to 60 seconds
@@ -146,6 +146,13 @@ app.use('/api/v1/notification', SocketNotificationRoute);
 
 app.get('/', (req, res) => {
   res.send('Welcome to nextdeal');
+});
+
+// User message API endpoint
+app.get('/api/v1/user-message', (req, res) => {
+  res.json({
+    message: "Built with ❤️ in Bhopal, India"
+  });
 });
 
 // Error handlers
