@@ -1,40 +1,44 @@
 import axios from 'axios';
 import { ServiceResponse, ResponseStatus } from '@/common/models/serviceResponse';
+import https from 'https';
 
-// MSG91 Configuration
-const MSG91_AUTH_KEY = process.env.MSG91_AUTH_KEY;
-const MSG91_SENDER_ID = "Nextdeal"
-const MSG91_ROUTE = process.env.MSG91_ROUTE || '4'; // Default route for transactional SMS
+// DVHosting Configuration
+const DVHOSTING_API_KEY = process.env.DVHOSTING_API_KEY;
 
-if (!MSG91_AUTH_KEY || !MSG91_SENDER_ID) {
-  throw new Error('MSG91 credentials are not properly configured');
+if (!DVHOSTING_API_KEY) {
+  throw new Error('DVHosting API key is not properly configured');
 }
 
 export const sendMobileOTP = async (mobileNumber: string, otp: string): Promise<ServiceResponse> => {
   try {
     // Format mobile number (remove any non-digit characters)
     const formattedNumber = mobileNumber.replace(/\D/g, '');
+    
+    // Ensure mobile number is 10 digits
+    if (formattedNumber.length !== 10) {
+      throw new Error('Invalid mobile number format. Must be 10 digits.');
+    }
 
-    // MSG91 API endpoint
-    const url = 'https://api.msg91.com/api/v5/flow/';
-
-    // Prepare the request payload
-    const payload = {
-      flow_id: process.env.MSG91_FLOW_ID, // Your MSG91 flow ID for OTP
-      sender: MSG91_SENDER_ID,
-      mobiles: `91${formattedNumber}`, // MSG91 requires country code
-      otp: otp,
-    };
+    // DVHosting API endpoint
+    const url = `https://dvhosting.in/api-sms-v3.php?api_key=${DVHOSTING_API_KEY}&number=${formattedNumber}&otp=${otp}`;
+    
+    console.log('Sending OTP to:', formattedNumber);
+    console.log('Using URL:', url);
 
     // Make the API request
-    const response = await axios.post(url, payload, {
-      headers: {
-        'authkey': MSG91_AUTH_KEY,
-        'Content-Type': 'application/json',
-      },
+    const response = await axios.get(url, {
+      httpsAgent: new https.Agent({
+        rejectUnauthorized: false
+      })
     });
 
-    if (response.data.type === 'success') {
+    console.log('DVHosting API Response:', response.data);
+
+    // Check if the response indicates success
+    if (response.data && response.data.return === true && response.data.message && 
+        (Array.isArray(response.data.message) ? 
+         response.data.message[0].toLowerCase().includes('success') : 
+         response.data.message.toLowerCase().includes('success'))) {
       return new ServiceResponse(
         ResponseStatus.Success,
         'OTP sent successfully',
@@ -42,13 +46,20 @@ export const sendMobileOTP = async (mobileNumber: string, otp: string): Promise<
         200
       );
     } else {
-      throw new Error(response.data.message || 'Failed to send OTP');
+      const errorMessage = response.data?.message?.[0] || response.data?.message || 'Failed to send OTP';
+      console.error('DVHosting API Error:', errorMessage);
+      return new ServiceResponse(
+        ResponseStatus.Failed,
+        errorMessage,
+        null,
+        500
+      );
     }
   } catch (error) {
     console.error('Error sending mobile OTP:', error);
     return new ServiceResponse(
       ResponseStatus.Failed,
-      'Failed to send OTP',
+      error instanceof Error ? error.message : 'Failed to send OTP',
       null,
       500
     );

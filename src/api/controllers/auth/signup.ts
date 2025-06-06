@@ -8,6 +8,7 @@ import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse
 import { env } from '@/common/utils/envConfig';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
 import { sendEmailOTP } from '@/common/utils/mailService';
+import { sendMobileOTP } from '@/common/utils/mobileMsgService';
 import { AppDataSource } from '@/server';
 
 const loginSchema = z.object({
@@ -22,13 +23,35 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
     const userRepo = AppDataSource.getRepository(UserAuth);
     const user = await userRepo.findOne({ where: { mobileNumber } });
 
+    // Case 1: New user
     if (!user) {
-      // Case 2: New user
       const newUser = new UserAuth();
       newUser.mobileNumber = mobileNumber;
       newUser.generateMobileOTP();
       const savedUser = await userRepo.save(newUser);
       
+      // Send OTP to mobile number
+      const otpResponse = await sendMobileOTP(mobileNumber, savedUser.mobileOTP!);
+      
+      if (otpResponse.statusCode !== StatusCodes.OK) {
+        handleServiceResponse(
+          new ServiceResponse(
+            ResponseStatus.Failed,
+            'Failed to send OTP. Please try again.',
+            {
+              user: {
+                id: savedUser.id,
+                isExistingUser: false,
+                isFullyVerified: false
+              }
+            },
+            StatusCodes.OK
+          ),
+          res
+        );
+        return;
+      }
+
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Success,
@@ -37,8 +60,7 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
             user: {
               id: savedUser.id,
               isExistingUser: false,
-              isFullyVerified: false,
-              mobileOTP: savedUser.mobileOTP
+              isFullyVerified: false
             }
           },
           StatusCodes.OK
@@ -48,12 +70,33 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Generate OTP for existing user
+    // Case 2: Existing user - Generate and send new OTP
     user.generateMobileOTP();
     await userRepo.save(user);
 
+    const otpResponse = await sendMobileOTP(mobileNumber, user.mobileOTP!);
+    
+    if (otpResponse.statusCode !== StatusCodes.OK) {
+      handleServiceResponse(
+        new ServiceResponse(
+          ResponseStatus.Failed,
+          'Failed to send OTP. Please try again.',
+          {
+            user: {
+              id: user.id,
+              isExistingUser: true,
+              isFullyVerified: user.isFullyVerified()
+            }
+          },
+          StatusCodes.OK
+        ),
+        res
+      );
+      return;
+    }
+
+    // Case 3: Not fully verified user
     if (!user.isFullyVerified()) {
-      // Case 3: Not fully verified user
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Success,
@@ -62,8 +105,7 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
             user: {
               id: user.id,
               isExistingUser: true,
-              isFullyVerified: false,
-              mobileOTP: user.mobileOTP
+              isFullyVerified: false
             }
           },
           StatusCodes.OK
@@ -73,7 +115,7 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Case 1: Fully verified existing user
+    // Case 4: Fully verified existing user
     handleServiceResponse(
       new ServiceResponse(
         ResponseStatus.Success,
@@ -82,8 +124,7 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
           user: {
             id: user.id,
             isExistingUser: true,
-            isFullyVerified: true,
-            mobileOTP: user.mobileOTP
+            isFullyVerified: true
           }
         },
         StatusCodes.OK
@@ -93,8 +134,29 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
 
   } catch (error) {
     console.error('Login Error:', error);
+    
+    // Handle validation errors
+    if (error instanceof z.ZodError) {
+      handleServiceResponse(
+        new ServiceResponse(
+          ResponseStatus.Failed,
+          'Invalid mobile number format',
+          null,
+          StatusCodes.BAD_REQUEST
+        ),
+        res
+      );
+      return;
+    }
+
+    // Handle other errors
     handleServiceResponse(
-      new ServiceResponse(ResponseStatus.Failed, 'Something went wrong', null, StatusCodes.INTERNAL_SERVER_ERROR),
+      new ServiceResponse(
+        ResponseStatus.Failed,
+        'Something went wrong. Please try again later.',
+        null,
+        StatusCodes.INTERNAL_SERVER_ERROR
+      ),
       res
     );
   }
@@ -368,6 +430,8 @@ const verifyOTPHandler = async (req: Request, res: Response): Promise<void> => {
             userType: user.userType,
             isEmailVerified: user.isEmailVerified,
             isMobileVerified: user.isMobileVerified,
+            profilePhoto: user.userProfileKey,
+
           },
           isFullyVerified,
           token,
