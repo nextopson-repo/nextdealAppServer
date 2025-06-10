@@ -15,5 +15,5 @@ Router.post('/keytoimg', getDocumentFromBucket);
 // Protected routes
 // Router.use(authenticate); // Apply authentication middleware to all routes below
 Router.post('/delete', deleteObjectFromBucket);
-
+ 
 export default Router;
