@@ -19,3 +19,4 @@ router.post('/fetch-user-connections-status', ConnectionController.fetchUserConn
 
 
 export default Router;
+getUserConnectionRequests

@@ -222,10 +222,9 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
 
 export const getAllProperties = async (req: Request, res: Response) => {
   try {
+    const {userType} = req.body
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
-    const userId = (req.user as RequestUser)?.id;
-    const userType = (req.user as RequestUser)?.userType;
 
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
@@ -254,8 +253,29 @@ export const getAllProperties = async (req: Request, res: Response) => {
       });
     }
 
-    const propertiesWithUrls = await Promise.all(
+    // Filter properties based on userType and WorkingWithAgent
+    const filteredProperties = await Promise.all(
       properties.map(async (property) => {
+        const propertyOwner = await userRepo.findOne({
+          where: { id: property.userId },
+          select: ['userType', 'WorkingWithAgent']
+        });
+
+        // If requesting user is an agent and property owner is an owner who doesn't work with agents
+        if (userType === 'Agent' && 
+            propertyOwner?.userType === 'Owner' && 
+            propertyOwner?.WorkingWithAgent === false) {
+          return null;
+        }
+        return property;
+      })
+    );
+
+    // Remove null values from filtered properties
+    const validProperties = filteredProperties.filter(property => property !== null);
+
+    const propertiesWithUrls = await Promise.all(
+      validProperties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
         return propertyResponse;
       })
@@ -264,10 +284,10 @@ export const getAllProperties = async (req: Request, res: Response) => {
     return res.status(200).json({
       message: 'Properties retrieved successfully',
       properties: propertiesWithUrls,
-      totalCount,
+      totalCount: validProperties.length,
       currentPage: Number(page),
-      totalPages: Math.ceil(totalCount / Number(limit)),
-      hasMore: skip + properties.length < totalCount
+      totalPages: Math.ceil(validProperties.length / Number(limit)),
+      hasMore: skip + validProperties.length < totalCount
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -295,7 +315,8 @@ export const searchProperty = async (req: Request, res: Response) => {
     priceRange,
     page = 1,
     limit = 5,
-    sort = 'newest'
+    sort = 'newest',
+    userType
   } = req.body;
 
   try {
@@ -303,7 +324,6 @@ export const searchProperty = async (req: Request, res: Response) => {
     const userRepo = AppDataSource.getRepository(UserAuth);
 
     // Build dynamic where clause
-    
     const whereClause: any = {};
 
     // Only add subCategory filter if it's not "All"
@@ -367,9 +387,30 @@ export const searchProperty = async (req: Request, res: Response) => {
       });
     }
 
+    // Filter properties based on userType and WorkingWithAgent
+    const filteredProperties = await Promise.all(
+      properties.map(async (property) => {
+        const propertyOwner = await userRepo.findOne({
+          where: { id: property.userId },
+          select: ['userType', 'WorkingWithAgent']
+        });
+
+        // If requesting user is an agent and property owner is an owner who doesn't work with agents
+        if (userType === 'Agent' && 
+            propertyOwner?.userType === 'Owner' && 
+            propertyOwner?.WorkingWithAgent === false) {
+          return null;
+        }
+        return property;
+      })
+    );
+
+    // Remove null values from filtered properties
+    const validProperties = filteredProperties.filter(property => property !== null);
+
     // Add owner information to properties
     const propertiesWithOwner = await Promise.all(
-      properties.map(async (property) => {
+      validProperties.map(async (property) => {
         const user = await userRepo.findOne({ 
           where: { id: property.userId }, 
           select: ['fullName', "mobileNumber",'email'] 
@@ -383,7 +424,7 @@ export const searchProperty = async (req: Request, res: Response) => {
     );
 
     // Calculate total inventory value
-    const inventoryValue = properties.reduce((total, property) => {
+    const inventoryValue = validProperties.reduce((total, property) => {
       return total + (property.propertyPrice || 0);
     }, 0);
 
@@ -391,10 +432,10 @@ export const searchProperty = async (req: Request, res: Response) => {
       message: 'Properties retrieved successfully',
       property: propertiesWithOwner,
       inventoryValue: inventoryValue.toString(),
-      totalCount,
+      totalCount: validProperties.length,
       currentPage: page,
-      totalPages: Math.ceil(totalCount / limit),
-      hasMore: skip + properties.length < totalCount
+      totalPages: Math.ceil(validProperties.length / limit),
+      hasMore: skip + validProperties.length < totalCount
     });
   } catch (error) {
     console.error('Error in searchProperty:', error);
@@ -404,7 +445,7 @@ export const searchProperty = async (req: Request, res: Response) => {
 
 export const trendingProperty = async (req: Request, res: Response) => {
   try {
-    const { subCategory } = req.body;
+    const { subCategory, userType } = req.body;
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -443,7 +484,28 @@ export const trendingProperty = async (req: Request, res: Response) => {
       });
     }
 
-    const userIds = [...new Set(properties.map((p) => p.userId))];
+    // Filter properties based on userType and WorkingWithAgent
+    const filteredProperties = await Promise.all(
+      properties.map(async (property) => {
+        const propertyOwner = await userRepo.findOne({
+          where: { id: property.userId },
+          select: ['userType', 'WorkingWithAgent']
+        });
+
+        // If requesting user is an agent and property owner is an owner who doesn't work with agents
+        if (userType === 'Agent' && 
+            propertyOwner?.userType === 'Owner' && 
+            propertyOwner?.WorkingWithAgent === false) {
+          return null;
+        }
+        return property;
+      })
+    );
+
+    // Remove null values from filtered properties
+    const validProperties = filteredProperties.filter(property => property !== null);
+
+    const userIds = [...new Set(validProperties.map((p) => p.userId))];
     const users = await userRepo.find({
       where: { id: In(userIds) },
       select: { id: true, fullName: true }
@@ -452,7 +514,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
     const userMap = new Map(users.map((user) => [user.id, user.fullName]));
 
     const propertiesWithDetails = await Promise.all(
-      properties.map(async (property) => {
+      validProperties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
         return {
           ...propertyResponse,
@@ -465,10 +527,10 @@ export const trendingProperty = async (req: Request, res: Response) => {
       success: true,
       message: 'Properties retrieved successfully',
       properties: propertiesWithDetails,
-      totalCount,
+      totalCount: validProperties.length,
       currentPage: Number(page),
-      totalPages: Math.ceil(totalCount / Number(limit)),
-      hasMore: skip + properties.length < totalCount
+      totalPages: Math.ceil(validProperties.length / Number(limit)),
+      hasMore: skip + validProperties.length < totalCount
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -478,7 +540,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
 //offering Property controller
 export const offeringProperty = async (req: Request, res: Response) => {
   try {
-    const { filter } = req.body;
+    const { filter, userType } = req.body;
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -528,9 +590,30 @@ export const offeringProperty = async (req: Request, res: Response) => {
       });
     }
 
+    // Filter properties based on userType and WorkingWithAgent
+    const filteredProperties = await Promise.all(
+      properties.map(async (property) => {
+        const propertyOwner = await userRepo.findOne({
+          where: { id: property.userId },
+          select: ['userType', 'WorkingWithAgent']
+        });
+
+        // If requesting user is an agent and property owner is an owner who doesn't work with agents
+        if (userType === 'Agent' && 
+            propertyOwner?.userType === 'Owner' && 
+            propertyOwner?.WorkingWithAgent === false) {
+          return null;
+        }
+        return property;
+      })
+    );
+
+    // Remove null values from filtered properties
+    const validProperties = filteredProperties.filter(property => property !== null);
+
     // Map properties with presigned URLs
     const propertiesWithUrls = await Promise.all(
-      properties.map(async (property) => {
+      validProperties.map(async (property) => {
         try {
           const propertyResponse = await mapPropertyResponse(property);
           return propertyResponse;
@@ -542,11 +625,11 @@ export const offeringProperty = async (req: Request, res: Response) => {
     );
 
     // Filter out any null values from failed mappings
-    const validProperties = propertiesWithUrls.filter(property => property !== null);
+    const validPropertiesWithUrls = propertiesWithUrls.filter(property => property !== null);
 
     // Get owner information for each property
     const propertiesWithOwner = await Promise.all(
-      validProperties.map(async (property) => {
+      validPropertiesWithUrls.map(async (property) => {
         try {
           const user = await userRepo.findOne({
             where: { id: property.userId },
@@ -573,10 +656,10 @@ export const offeringProperty = async (req: Request, res: Response) => {
       message: 'Properties fetched successfully',
       data: {
         property: propertiesWithOwner,
-        totalCount,
+        totalCount: validPropertiesWithUrls.length,
         currentPage: Number(page),
-        totalPages: Math.ceil(totalCount / Number(limit)),
-        hasMore: skip + properties.length < totalCount
+        totalPages: Math.ceil(validPropertiesWithUrls.length / Number(limit)),
+        hasMore: skip + validPropertiesWithUrls.length < totalCount
       }
     });
   } catch (error) {

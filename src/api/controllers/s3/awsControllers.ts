@@ -1,7 +1,7 @@
 import { GetObjectCommand, GetObjectCommandInput, PutObjectCommand, S3Client, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Request, Response } from 'express';
-import nsfwDetectionService from '../../nsfw/nsfwDetectionService';
+// import nsfwDetectionService from '../../nsfw/nsfwDetectionService';
 import axios from 'axios';
 
 // Define types for better type safety
@@ -80,26 +80,26 @@ export const generateUploadUrl = async (req: Request, res: Response<GenerateUplo
 
     try {
       // Download the image
-      const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
-      const imageBuffer = Buffer.from(response.data);
+      // const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+      // const imageBuffer = Buffer.from(response.data);
       // Check for NSFW content
-      const nsfwResult = await nsfwDetectionService.predict(imageBuffer);
+      // const nsfwResult = await nsfwDetectionService.predict(imageBuffer);
       
-      if (nsfwResult.isAdult) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Image contains inappropriate content',
-          data: {
-            url: '',
-            key,
-            expiresIn: expDate,
-            nsfwDetails: {
-              label: nsfwResult.label,
-              confidence: nsfwResult.confidence
-            }
-          }
-        });
-      }
+      // if (nsfwResult.isAdult) {
+      //   return res.status(400).json({
+      //     status: 'error',
+      //     message: 'Image contains inappropriate content',
+      //     data: {
+      //       url: '',
+      //       key,
+      //       expiresIn: expDate,
+      //       nsfwDetails: {
+      //         label: nsfwResult.label,
+      //         confidence: nsfwResult.confidence
+      //       }
+      //     }
+      //   });
+      // }
 
       const url = await generateUrlForUploading(bucketName, key, expDate, contentType);
       

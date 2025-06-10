@@ -16,7 +16,7 @@ import requestLogger from '@/common/middleware/requestLogger';
 import { UserAuth } from './api/entity';
 import authRoutes from './api/routes/auth/AuthRoutes';
 import s3bucket from './api/routes/aws/s3';
-import profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
+import Profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
 import DropDownRouter from './api/routes/dropDown/dropdown';
 import { swaggerSpec } from './config/swagger';
 import { Property } from './api/entity/Property';
@@ -135,7 +135,7 @@ app.use(express.json());
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/s3', s3bucket);
 app.use('/api/v1/property', property);
-app.use('/api/v1/profile', profile);
+app.use('/api/v1/profile', Profile);
 app.use('/api/v1/dropdown', DropDownRouter);
 app.use('/api/v1/kyc', kycProcessRoutes);
 app.use('/api/v1/dashboard', DashboardRoute);
@@ -146,6 +146,13 @@ app.use('/api/v1/notification', SocketNotificationRoute);
 
 app.get('/', (req, res) => {
   res.send('Welcome to nextdeal');
+});
+
+// User message API endpoint
+app.get('/api/v1/user-message', (req, res) => {
+  res.json({
+    message: "Built with ❤️ in Bhopal, India"
+  });
 });
 
 // Error handlers

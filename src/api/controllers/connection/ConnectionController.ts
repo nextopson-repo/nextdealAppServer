@@ -1,11 +1,12 @@
-import { formatTimestamp,  } from './../notification/socketNotificationController';
-import { UserAuth } from "@/api/entity";
-import { Connections } from "@/api/entity/Connection";
-import { AppDataSource } from "@/server";
+import { formatTimestamp } from './../notification/socketNotificationController';
+import { UserAuth } from '@/api/entity';
+import { Connections } from '@/api/entity/Connection';
+import { AppDataSource } from '@/server';
 import { Request, Response } from 'express';
-import { sendNotification } from "../notification/socketNotificationController";
-import { In } from "typeorm";
-import { generatePresignedUrl } from "../s3/awsControllers";
+import { sendNotification } from '../notification/socketNotificationController';
+import { In } from 'typeorm';
+import { generatePresignedUrl } from '../s3/awsControllers';
+import { generateNotification } from '../notification/NotificationController';
 
 // Send a connection request
 export const sendConnectionRequest = async (req: Request, res: Response): Promise<Response> => {
@@ -41,15 +42,11 @@ export const sendConnectionRequest = async (req: Request, res: Response): Promis
     await connectionRepository.save(newConnection);
 
     // Create a notification
-    await sendNotification(
-      {
-        body: {
-          userId: receiverId,
-          message: `${requester?.firstName} ${requester?.lastName} Sent you a connection Request`,
-          mediakey: requester?.profilePictureUploadId
-        }
-      } as Request,
-      res
+    await generateNotification(
+      receiverId,
+      `${requester.fullName} sent you a  follow request.`,
+      requester.userProfileKey,
+      'follow-request'
     );
 
     return res.status(201).json({
@@ -63,7 +60,7 @@ export const sendConnectionRequest = async (req: Request, res: Response): Promis
 };
 
 // Accept or reject a connection request
-export const updateConnectionStatus = async (req: Request, res: Response): Promise<Response> => {
+export const updateConnectionStatus = async (req: Request, res: Response)=> {
   const { userId, connectionId, status } = req.body;
 
   try {
@@ -92,20 +89,12 @@ export const updateConnectionStatus = async (req: Request, res: Response): Promi
     const data = await connectionRepository.save(connection);
 
     // Create a notification
-    const notification = await sendNotification(
-      {
-        body: {
-          userId: connection.requesterId,
-          message: `${connection.receiver.firstName} ${connection.receiver.lastName} ${data?.status} your connection request`,
-          mediakey: connection?.receiver?.profilePictureUploadId
-        }
-      } as Request,
-      res
+    await generateNotification(
+      connection.requesterId,
+      `Your connection request has been ${status}.`,
+      userId,
+      'connection-status-update'
     );
-    if (notification) {
-      return res.status(200).json({ message: `Connection ${status} successfully.`, data });
-    }
-    return res.status(500).json({ message: 'Internal Server Error please retry' });
   } catch (error: any) {
     console.error('Error updating connection status:', error);
     return res.status(500).json({ message: 'Internal Server Error' });
@@ -170,7 +159,7 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
           userId: user?.id,
           firstName: user?.firstName,
           lastName: user?.lastName,
-         // userRole: user?.userRole,
+          // userRole: user?.userRole,
           profilePictureUrl: profilePictureUrl,
           meeted: connection.updatedAt ? formatTimestamp(connection.updatedAt) : formatTimestamp(connection.createdAt),
           mutual: isMutual,

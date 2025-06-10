@@ -40,12 +40,14 @@ export class UserKyc extends BaseEntity {
   @Column({ type: 'varchar', nullable: true })
   aadharcardAddress!: string;
 
-  @Column({ type: 'simple-array', nullable: true })
-  aadharImageKeys!: string[];
+  @Column({ type: 'varchar', nullable: true })
+  aadharFrontKey!: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  aadharBackKey!: string;
 
   @Column({ type: 'varchar', nullable: true })
   selfieImageKey!: string;
-
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;

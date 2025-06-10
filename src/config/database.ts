@@ -1,6 +1,7 @@
 import { DataSource, DataSourceOptions } from 'typeorm';
-
-import { UserAuth } from '../api/entity';
+import { UserAuth } from '../api/entity/UserAuth';
+import { UserKyc } from '../api/entity/userkyc';
+import { Connections } from '../api/entity/Connection';
 
 // Create a DataSource instance
 const dataSourceOptions: DataSourceOptions = {
@@ -10,7 +11,7 @@ const dataSourceOptions: DataSourceOptions = {
   username: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_USERNAME : process.env.LOCAL_DB_USERNAME,
   password: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_PASSWORD : process.env.LOCAL_DB_PASSWORD,
   database: process.env.NODE_ENV === 'production' ? process.env.DEV_AWS_DB_NAME : process.env.LOCAL_DB_NAME,
-  entities: [UserAuth],
+  entities: [UserAuth, UserKyc, Connections],
   synchronize: true, // Enable this for development
   logging: true, // Enable this for development
 };
