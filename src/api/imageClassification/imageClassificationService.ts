@@ -1,6 +1,5 @@
 import * as tf from '@tensorflow/tfjs-node';
-import { fileURLToPath } from 'url';
-import { join, dirname, resolve } from 'path';
+import { ModelLoader } from '@/ml-models/modelLoader';
 
 interface RoomClassificationResult {
   label: string;
@@ -8,32 +7,14 @@ interface RoomClassificationResult {
 }
 
 class ImageClassificationService {
-  private roomModel: tf.LayersModel | undefined;
   private readonly classNames = ['Bathroom', 'Bedroom', 'Dining', 'Kitchen', 'Livingroom'] as const;
 
-  constructor() {
-    this.loadModel().catch((error) => console.error('Model loading failed on startup:', error));
-  }
-
-  private async loadModel() {
-    try {
-      // Resolve the directory dynamically using import.meta.url
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
-      const modelPath = resolve(__dirname, '../../../src/ml-models/room-classifier/tfjs_model');
-      console.log('Attempting to load room model from:', modelPath);
-      this.roomModel = await tf.loadLayersModel(`file://${modelPath}/model.json`);
-      console.log('Room classification model loaded successfully');
-    } catch (error) {
-      console.error('Error loading model:', error);
-      throw error;
-    }
-  }
-
   async predictRoom(imageBuffer: Buffer): Promise<RoomClassificationResult> {
-    if (!this.roomModel) {
-      await this.loadModel();
-      if (!this.roomModel) throw new Error('Room model not loaded');
+    const modelLoader = ModelLoader.getInstance();
+    const model = modelLoader.getRoomModel();
+    
+    if (!model) {
+      throw new Error('Room model not loaded');
     }
 
     try {
@@ -44,7 +25,7 @@ class ImageClassificationService {
         .expandDims();
       console.log('Input tensor shape for room:', tensor.shape);
 
-      const prediction = this.roomModel.predict(tensor) as tf.Tensor;
+      const prediction = model.predict(tensor) as tf.Tensor;
       const values = Array.from(prediction.dataSync());
       tensor.dispose();
       prediction.dispose();

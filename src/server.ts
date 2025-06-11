@@ -45,6 +45,7 @@ import { Connections } from './api/entity/Connection';
 import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNotificationRoute'
 import { UserReview } from './api/entity/UserReview.js';
 import reviewRoutes from './api/routes/review/reviewRoute';
+import { ModelLoader } from './ml-models/modelLoader';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -101,8 +102,18 @@ app.use(
 
 // Initialize the DataSource before setting up routes
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     logger.info('Database connection has been established successfully.');
+    
+    // Initialize ML models
+    try {
+      const modelLoader = ModelLoader.getInstance();
+      await modelLoader.loadModels();
+      logger.info('ML models loaded successfully');
+    } catch (error) {
+      logger.error('Error loading ML models:', error);
+      // Continue server startup even if models fail to load
+    }
   })
   .catch((error) => {
     logger.error('Error during Data Source initialization:', error);
@@ -164,6 +175,35 @@ app.use(errorHandler());
 
 // Initialize HTTP server and WebSocket
 const httpServer = initializeSocket(app);
+
+// Graceful shutdown handlers
+const gracefulShutdown = async () => {
+  logger.info('Received shutdown signal');
+
+  // Close HTTP server
+  if (httpServer) {
+    httpServer.close(() => {
+      logger.info('HTTP server closed');
+    });
+  }
+
+  // Close database connection
+  if (AppDataSource.isInitialized) {
+    try {
+      await AppDataSource.destroy();
+      logger.info('Database connection closed');
+    } catch (error) {
+      logger.error('Error closing database connection:', error);
+    }
+  }
+
+  // Exit process
+  process.exit(0);
+};
+
+// Handle termination signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
