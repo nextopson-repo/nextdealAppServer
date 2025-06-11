@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
-import { UserReview } from '../../entity/UserReview';
 import { AppDataSource } from '@/server';
 import { UserAuth } from '@/api/entity';
 import { generatePresignedUrl } from '../s3/awsControllers';
+import { UserReview } from '@/api/entity/UserReview';
 
 // Function to format timestamp into relative time
 const getRelativeTime = (date: Date): string => {
@@ -45,11 +45,11 @@ const getRelativeTime = (date: Date): string => {
 // Create a new review
 export const createReview = async (req: Request, res: Response) => {
   try {
-    const { userId, reviewerId, message } = req.body;
+    const { userId, reviewerId, message, rating } = req.body;
 
     if (!userId || !reviewerId) {
       return res.status(400).json({
-        success: false,
+        status: 'error',
         message: 'userId and reviewerId are required'
       });
     }
@@ -65,7 +65,7 @@ export const createReview = async (req: Request, res: Response) => {
 
     if (!user || !reviewer) {
       return res.status(404).json({
-        success: false,
+        status: 'error',
         message: 'User or reviewer not found'
       });
     }
@@ -74,6 +74,7 @@ export const createReview = async (req: Request, res: Response) => {
       userId,
       reviewerId,
       message,
+      rating,
       createdBy: req.user?.id || 'system',
       updatedBy: req.user?.id || 'system'
     });
@@ -81,13 +82,13 @@ export const createReview = async (req: Request, res: Response) => {
     await reviewRepo.save(review);
 
     return res.status(201).json({
-      success: true,
-      data: review,
-      message: 'Review created successfully'
+      status: 'success',
+      message: 'Review created successfully',
+      data: review
     });
   } catch (error: any) {
     return res.status(500).json({
-      success: false,
+      status: 'error',
       message: 'Error creating review',
       error: error.message
     });
@@ -106,15 +107,14 @@ export const getUserReviews = async (req: Request, res: Response) => {
     const user = await userRepo.findOne({ where: { id: userId } });
     if (!user) {
       return res.status(404).json({
-        success: false,
+        status: 'error',
         message: 'User not found'
       });
     }
 
-    // Get reviews with reviewer information
+    // Get reviews without relations first
     const reviews = await reviewRepo.find({
       where: { userId },
-      relations: ['reviewer'],
       order: {
         createdAt: 'DESC'
       }
@@ -133,20 +133,28 @@ export const getUserReviews = async (req: Request, res: Response) => {
       }
 
       return {
+        id: review.id,
         reviewerName: reviewer?.fullName || 'Anonymous',
         reviewerProfileImg,
         reviewermessage: review.message,
-        revieweTimeStamp: getRelativeTime(review.createdAt)
+        revieweTimeStamp: getRelativeTime(review.createdAt),
+        rating: review.rating,
+        createdAt: review.createdAt,
+        isReported: review.isReported,
+        isVerified: review.isVerified,
+        reportReason: review.reportReason,
       };
     }));
 
     return res.status(200).json({
-      success: true,
+      status: 'success',
+      message: 'Reviews retrieved successfully',
       data: formattedReviews
     });
   } catch (error: any) {
+    console.error("Error fetching reviews:", error);
     return res.status(500).json({
-      success: false,
+      status: 'error',
       message: 'Error fetching reviews',
       error: error.message
     });

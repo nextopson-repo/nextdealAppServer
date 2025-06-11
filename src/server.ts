@@ -43,9 +43,9 @@ import NotificationRoutes from './api/routes/notificationsRoutes/NotificationRou
 import ConnectionRoutes from './api/routes/connection/ConnectionRoutes';
 import { Connections } from './api/entity/Connection';
 import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNotificationRoute'
-import { UserReview } from './api/entity/UserReview.js';
 import reviewRoutes from './api/routes/review/reviewRoute';
 import { ModelLoader } from './ml-models/modelLoader';
+import { UserReview } from './api/entity/UserReview';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -76,7 +76,7 @@ const dataSourceOptions: DataSourceOptions = {
   ],
   synchronize: true,
   logging: false,
-  entitySkipConstructor: true,
+  entitySkipConstructor: false,
   connectTimeout: 60000, // Increase connection timeout to 60 seconds
   extra: {
     connectionLimit: 10, // Limit connections to prevent overloading

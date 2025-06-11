@@ -12,6 +12,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+// import type { UserReview } from './UserReview';
 
 @Entity('UserAuth')
 export class UserAuth extends BaseEntity {
@@ -96,6 +97,13 @@ export class UserAuth extends BaseEntity {
   lastOTPAttempt!: Date | null;
     firstName: any;
     lastName: any;
+
+  // Add relations for reviews
+  // @OneToMany('UserReview', 'user')
+  // receivedReviews!: UserReview[];
+
+  // @OneToMany('UserReview', 'reviewer')
+  // givenReviews!: UserReview[];
 
   @BeforeInsert()
   async generateUUID() {

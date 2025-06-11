@@ -9,18 +9,18 @@ import {
   BaseEntity,
   BeforeInsert,
 } from 'typeorm';
-import { UserAuth } from './index';
 import { randomBytes } from 'crypto';
+// import type { UserAuth } from './UserAuth';
 
-@Entity('userReviews')
+@Entity('UserReview')
 export class UserReview extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'userId', type: 'varchar', length: 36 })
+  @Column({ type: 'varchar', length: 36 })
   userId!: string;
 
-  @Column({ name: 'reviewerId', type: 'varchar', length: 36 })
+  @Column({  type: 'varchar', length: 36 })
   reviewerId!: string;
 
   @Column({ type: 'text', nullable: true })
@@ -36,7 +36,7 @@ export class UserReview extends BaseEntity {
   isReported!: boolean;
 
   @Column({ type: 'text', nullable: true })
-  reportReason!: string | null;
+  reportReason!: string 
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
@@ -55,13 +55,13 @@ export class UserReview extends BaseEntity {
   })
   updatedAt!: Date;
 
-  @ManyToOne(() => UserAuth, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'userId' })
-  user!: UserAuth;
+  // @ManyToOne('UserAuth', 'receivedReviews', { onDelete: 'CASCADE' })
+  // @JoinColumn({ name: 'userId' })
+  // user!: UserAuth;
 
-  @ManyToOne(() => UserAuth, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'reviewerId' })
-  reviewer!: UserAuth;
+  // @ManyToOne('UserAuth', 'givenReviews', { onDelete: 'CASCADE' })
+  // @JoinColumn({ name: 'reviewerId' })
+  // reviewer!: UserAuth;
 
   @BeforeInsert()
   async generateUUID() {
@@ -88,6 +88,6 @@ export class UserReview extends BaseEntity {
 
   removeReport(): void {
     this.isReported = false;
-    this.reportReason = null;
+    this.reportReason = '';
   }
 }
