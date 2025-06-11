@@ -43,6 +43,8 @@ import NotificationRoutes from './api/routes/notificationsRoutes/NotificationRou
 import ConnectionRoutes from './api/routes/connection/ConnectionRoutes';
 import { Connections } from './api/entity/Connection';
 import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNotificationRoute'
+import { UserReview } from './api/entity/UserReview.js';
+import reviewRoutes from './api/routes/review/reviewRoute';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -69,6 +71,7 @@ const dataSourceOptions: DataSourceOptions = {
     PropertyEnquiry,
     Notifications,
     Connections,
+    UserReview
   ],
   synchronize: true,
   logging: false,
@@ -143,6 +146,7 @@ app.use('/api/v1/republish', republishRoutes);
 app.use('/api/v1/notification', NotificationRoutes);
 app.use('/api/v1/connection' , ConnectionRoutes);
 app.use('/api/v1/notification', SocketNotificationRoute);
+app.use('/api/v1/review', reviewRoutes);
 
 app.get('/', (req, res) => {
   res.send('Welcome to nextdeal');
