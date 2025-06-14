@@ -32,7 +32,7 @@ import { UserKyc } from './api/entity/userkyc';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 
 import DashboardRoute from './api/routes/dashboardRoutes/DashboardRoutes';
-import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; // Ensure this path is correct
+import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; 
 import { PropertyImages } from './api/entity/PropertyImages';
 import { Location } from './api/entity/Location';
 import { initializeSocket } from './socket';
@@ -46,6 +46,7 @@ import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNoti
 import reviewRoutes from './api/routes/review/reviewRoute';
 import { ModelLoader } from './ml-models/modelLoader';
 import { UserReview } from './api/entity/UserReview';
+import { RequirementEnquiry } from './api/entity/RequirementEnquiry';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -72,7 +73,8 @@ const dataSourceOptions: DataSourceOptions = {
     PropertyEnquiry,
     Notifications,
     Connections,
-    UserReview
+    UserReview,
+    RequirementEnquiry
   ],
   synchronize: true,
   logging: false,

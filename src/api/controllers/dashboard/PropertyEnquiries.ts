@@ -4,26 +4,7 @@ import { ErrorHandler } from '@/api/middlewares/error';
 import { Property } from '@/api/entity/Property';
 import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
 import { Address } from '@/api/entity/Address';
-
-export interface PropertyRequest extends Request {
-  body: {
-    propertyId?: string;
-    userId?: string;
-    ownerId?: string;
-    addressState?: string;
-    addressCity?: string;
-    imageKeys?: string[];
-    category: string;
-    subCategory: string;
-  };
-  user?: {
-    id: string;
-    userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
-    email: string;
-    mobileNumber: string;
-    isAdmin?: boolean;
-  };
-}
+import { UserAuth } from '@/api/entity/UserAuth';
 
 type PropertyResponseType = {
   id: string;
@@ -79,22 +60,64 @@ export const createPropertyEnquiry = async (req: Request, res: Response) => {
 export const getAllPropertyEnquiries = async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
-
     if (!userId) {
       return res.status(400).json({ message: 'User ID is required' });
     }
+
     const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+
+    // Fetch all property enquiries for the user, including property and owner info
     const propertyEnquiries = await propertyEnquiryRepo.find({
       where: { userId },
-      relations: ['property', 'property.address', 'property.propertyImages'],
+      relations: ['property'],
+      order: { createdAt: 'DESC' }
     });
+
+    // Get S3 bucket from env
+    const S3_BUCKET = process.env.AWS_S3_BUCKET || 'nextdealapp';
+    const S3_REGION = process.env.AWS_REGION || 'us-east-1';
+    const S3_BASE_URL = `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/`;
+
+    // For each enquiry, fetch the owner (agent) info
+    const formatted = await Promise.all(propertyEnquiries.map(async (enquiry) => {
+     
+       const  agent = await userRepo.findOne({ where: { id: enquiry?.ownerId } });
+      
+
+      return {
+        id: enquiry.id,
+        agentName: agent?.fullName ,
+        agentRole: agent?.userType ,
+        agentAvatar: agent?.userProfileKey
+          ? `${S3_BASE_URL}${agent.userProfileKey}`
+          : 'https://randomuser.me/api/portraits/men/1.jpg',
+        timeAgo: timeAgo(enquiry.createdAt),
+        propertId:enquiry.property?.id,
+        propertyType: enquiry.property?.category || '',
+        propertyTitle: enquiry.property?.title || '',
+      };
+    }));
+
     return res.status(200).json({
       message: 'Property enquiries retrieved successfully',
-      propertyEnquiries,
+      propertyEnquiries: formatted,
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Error retrieving property enquiries' });
   }
 };
+
+// Helper to format time ago
+function timeAgo(date: Date): string {
+  const now = new Date();
+  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
+  if (diff < 60) return `just now`;
+  if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+  if (diff < 604800) return `${Math.floor(diff / 86400)} days ago`;
+  return `${Math.floor(diff / 604800)} week${Math.floor(diff / 604800) > 1 ? 's' : ''} ago`;
+}
 

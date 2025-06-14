@@ -9,6 +9,7 @@ import { Address } from '@/api/entity/Address';
 import { In, Between, Not } from 'typeorm';
 import { UserKyc } from '@/api/entity/userkyc';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
+import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
 
 // Custom type for request user
 type RequestUser = {
@@ -93,6 +94,15 @@ type PropertyResponseType = {
   createdAt: Date;
   updatedAt: Date;
   propertyImages: PropertyImageWithUrl[];
+  enquiries?: {
+    viewProperty: number;
+    calling: number;
+  };
+  ownerDetails?: {
+    name: string | null;
+    email: string | null;
+    mobileNumber: string | null;
+  };
 };
 
 // Helper to map PropertyImages to PropertyImageWithUrl (with presigned URLs)
@@ -130,8 +140,9 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
     }
 
     const propertyRepo = AppDataSource.getRepository(Property);
-    
-    // Get total count
+    const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    // Get total count 
     const totalCount = await propertyRepo.count({
       where: { userId }
     });
@@ -160,7 +171,30 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
     const propertiesWithUrls = await Promise.all(
       properties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
-        return propertyResponse;
+        
+        // Get property enquiries for this property
+        const propertyEnquiries = await propertyEnquiryRepo.find({
+          where: { propertyId: property.id },
+          order: { createdAt: 'DESC' }
+        });
+
+        const propertyOwner = await userRepo.findOne({
+          where: { id: property.userId },
+          select: ['fullName', 'email', 'mobileNumber']
+        });
+
+        return {
+          ...propertyResponse,
+          enquiries: {
+            viewProperty: propertyEnquiries.length,
+            calling: propertyEnquiries.filter(enquiry => enquiry.calling).length,
+          },
+          ownerDetails: {
+            name: propertyOwner?.fullName || null,
+            email: propertyOwner?.email || null,
+            mobileNumber: propertyOwner?.mobileNumber || null,
+          }
+        };
       })
     );
 
@@ -506,10 +540,12 @@ export const trendingProperty = async (req: Request, res: Response) => {
     const validProperties = filteredProperties.filter(property => property !== null);
 
     const userIds = [...new Set(validProperties.map((p) => p.userId))];
-    const users = await userRepo.find({
-      where: { id: In(userIds) },
-      select: { id: true, fullName: true }
-    });
+    const users = userIds.length > 0
+      ? await userRepo.find({
+          where: { id: In(userIds) },
+          select: ['id', 'fullName', 'userType', 'userProfileKey', 'mobileNumber']
+        })
+      : [];
 
     const userMap = new Map(users.map((user) => [user.id, user.fullName]));
 
@@ -671,3 +707,323 @@ export const offeringProperty = async (req: Request, res: Response) => {
     });
   }
 };
+
+// delete property 
+export const deleteProperty = async (req: Request, res: Response) => {
+  try {
+    const { propertyId, userId } = req.body;
+
+    if (!propertyId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ID is required',
+      });
+    }
+
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const propertyImagesRepo = AppDataSource.getRepository(PropertyImages);
+    const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
+
+    // Get the property with relations
+    const property = await propertyRepo.findOne({
+      where: { id: propertyId },
+      relations: ['propertyImages', 'address']
+    });
+
+    const user = await userRepo.findOne({
+      where: { id: userId },
+    });
+    
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found',
+      });
+    }
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check authorization
+    if (!user.isAdmin && property.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized',
+      });
+    }
+
+    // Start a transaction
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // Delete related records first
+      if (property.propertyImages && property.propertyImages.length > 0) {
+        await propertyImagesRepo.remove(property.propertyImages);
+      }
+
+      // Delete property enquiries
+      await propertyEnquiryRepo.delete({ propertyId: property.id });
+
+      // Delete the property
+      await propertyRepo.remove(property);
+
+      // Commit the transaction
+      await queryRunner.commitTransaction();
+
+      return res.status(200).json({
+        success: true,
+        message: user.isAdmin ? 'Property deleted by admin successfully' : 'Property deleted successfully',
+      });
+    } catch (error) {
+      // Rollback the transaction on error
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      // Release the query runner
+      await queryRunner.release();
+    }
+  } catch (error) {
+    console.error('Error in deleteProperty:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};  
+
+// update isSold to true or false
+export const updateIsSold = async (req: Request, res: Response) => {
+  try {
+    const { propertyId, isSold, userId } = req.body;
+
+    // Validate required fields
+    if (!propertyId || userId === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ID and User ID are required',
+      });
+    }
+
+    // Validate isSold is a boolean
+    if (typeof isSold !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'isSold must be a boolean value',
+      });
+    }
+
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+
+    // Get the property
+    const property = await propertyRepo.findOne({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found',
+      });
+    }
+
+    // Get the user
+    const user = await userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check authorization
+    if (!user.isAdmin && property.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to update this property',
+      });
+    }
+
+    // Update the property
+    property.isSold = isSold;
+    await propertyRepo.save(property);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Property status updated successfully',
+      property: {
+        id: property.id,
+        isSold: property.isSold
+      }
+    });
+  } catch (error) {
+    console.error('Error in updateIsSold:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+
+// update property status
+export const updatePropertyStatus = async (req: Request, res: Response) => {
+  try {
+    const { propertyId, isActive, userId } = req.body;
+
+    if (!propertyId || userId === undefined) {
+      return res.status(400).json({
+        success: false,
+        message: 'Property ID and User ID are required',
+      });
+    }
+
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+
+    // Get the property
+    const property = await propertyRepo.findOne({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found',
+      });
+    }
+
+    // Get the user
+    const user = await userRepo.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check if user owns the property
+    if (property.userId !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to update this property',
+      });
+    }
+
+    // TODO: If trying to activate, check the limit based on user type. it's already in frontend
+    // if (isActive) {
+    //   const maxActiveProperties = user.userType === 'Agent' ? 5 : 1;
+    //   const activePropertiesCount = await propertyRepo.count({
+    //     where: { 
+    //       userId: userId,
+    //       isActive: true,
+    //       id: Not(propertyId) // Exclude current property
+    //     }
+    //   });
+
+    //   if (activePropertiesCount >= maxActiveProperties) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: `You can only have ${maxActiveProperties} active propert${maxActiveProperties > 1 ? 'ies' : 'y'} at a time`,
+    //     });
+    //   }
+    // }
+
+    // Update the property status
+    property.isActive = isActive;
+    await propertyRepo.save(property);
+
+    return res.status(200).json({
+      success: true,
+      message: `Property ${isActive ? 'activated' : 'deactivated'} successfully`,
+      property: {
+        id: property.id,
+        isActive: property.isActive
+      }
+    });
+  } catch (error) {
+    console.error('Error in updatePropertyStatus:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// get property leands
+export const getPropertyLeands = async (req: Request, res: Response) => {
+  try {
+    const { propertyId } = req.body;
+
+    const propertyRepo = AppDataSource.getRepository(Property);
+    const propertyEnquiriesRepo = AppDataSource.getRepository(PropertyEnquiry);
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const property = await propertyRepo.findOne({
+      where: { id: propertyId },
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        success: false,
+        message: 'Property not found',
+      });
+    }
+    const propertyEnquiries = await propertyEnquiriesRepo.find({
+      where: { propertyId },
+      order: { createdAt: 'DESC' },
+    });
+
+    // Fetch user details for each enquiry
+    const userIds = propertyEnquiries.map(e => e.userId);
+    const users = userIds.length > 0
+      ? await userRepo.find({
+          where: { id: In(userIds) },
+          select: ['id', 'fullName', 'userType', 'userProfileKey', 'mobileNumber']
+        })
+      : [];
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const leads = propertyEnquiries.map(enquiry => {
+      const user = userMap.get(enquiry.userId);
+      return {
+        enquiryId: enquiry.id,
+        createdAt: enquiry.createdAt,
+        userId: enquiry.userId,
+        fullName: user?.fullName || 'Unknown',
+        userType: user?.userType || 'User',
+        userProfileImage: user?.userProfileKey  ? generatePresignedUrl(user?.userProfileKey) : "https://randomuser.me/api/portraits/men/1.jpg",
+        mobileNumber: user?.mobileNumber || null,
+      };
+    });
+
+    return res.status(200).json({
+      success: true,
+      leads,
+      total: leads.length,
+    });
+  } catch (error) {
+    console.error('Error in getPropertyLeands:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+

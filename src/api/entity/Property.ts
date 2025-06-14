@@ -23,11 +23,14 @@ export class Property extends BaseEntity {
   @Column('uuid')
   userId!: string;
 
-  @ManyToOne(() => Address)
+  @ManyToOne(() => Address, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'addressId' })
   address!: Address;
 
-  @OneToMany(() => PropertyImages, (propertyImages) => propertyImages.property)
+  @OneToMany(() => PropertyImages, (propertyImages) => propertyImages.property, {
+    cascade: true,
+    onDelete: 'CASCADE'
+  })
   @JoinColumn({ name: 'propertyImages' })
   propertyImages!: PropertyImages[];
 
@@ -36,6 +39,9 @@ export class Property extends BaseEntity {
 
   @Column({ type: 'text', nullable: false })
   description!: string;
+
+  @Column({ type: 'boolean', default: false })
+  isActive!: boolean;
 
   @Column({ type: 'varchar', nullable: false })
   category!: string;
