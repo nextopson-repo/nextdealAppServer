@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { AppDataSource } from "../../../config/database";
 import { UserAuth } from "../../entity/UserAuth";
 import { UserKyc } from "../../entity/userkyc";
+import { UserReview } from "../../entity/UserReview";
 import { generatePresignedUrl } from "../s3/awsControllers";
 import { sendMobileOTP } from "@/common/utils/mobileMsgService";
 import { verifyOTP } from "@/common/utils/otpService";
@@ -35,6 +36,8 @@ interface UserProfileResponse {
   userProfile: string | null;
   subscriptionsType: string;
   followers: string;
+  following: string;
+  creditbilityScore: number;
 }
 
 export const getUserProfile = async (req: Request, res: Response) => {
@@ -56,7 +59,8 @@ export const getUserProfile = async (req: Request, res: Response) => {
     // Initialize repositories
     const userRepo = AppDataSource.getRepository(UserAuth);
     const kycRepo = AppDataSource.getRepository(UserKyc);
-    const connection = AppDataSource.getRepository(Connections);
+    const connectionRepo = AppDataSource.getRepository(Connections);
+    const reviewRepo = AppDataSource.getRepository(UserReview);
 
     // First check if user exists
     const user = await userRepo.findOne({
@@ -70,15 +74,30 @@ export const getUserProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Get connection count where user is either requester or receiver and status is accepted
-    const connectionCount = await connection.count({
+    // Get connection counts
+    const followingCount = await connectionRepo.count({
       where: [
         { requesterId: userId, status: 'accepted' },
+      ]
+    });
+    const followerCount = await connectionRepo.count({
+      where: [
         { receiverId: userId, status: 'accepted' }
       ]
     });
 
-    // if !connectionCount send o connectionCount
+    // Calculate average rating and credibility score
+    // const reviews = await reviewRepo.find({
+    //   where: { userId }
+    // });
+    
+    let creditbilityScore = 0;
+    // if (reviews && reviews.length > 0) {
+    //   const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0);
+    //   const averageRating = totalRating / reviews.length;
+    //   // Convert to percentage (e.g., 8/10 = 80%)
+    //   creditbilityScore = Math.round((averageRating / 10) * 100);
+    // }
 
     // Then fetch KYC data
     let kyc = await kycRepo.findOne({
@@ -124,7 +143,9 @@ export const getUserProfile = async (req: Request, res: Response) => {
       kycStatus: kyc?.kycStatus || "Pending",
       userProfile: userProfileUrl || "https://futureoflife.org/wp-content/uploads/2020/08/elon_musk_royal_society.jpg",
       subscriptionsType: "Premium Active",
-      followers: formatNumber(connectionCount)
+      followers: formatNumber(followerCount),
+      following: formatNumber(followingCount),
+      creditbilityScore
     };
 
     return res.json({
@@ -204,5 +225,3 @@ export const resendDeleteAccountOTP = async (req: Request, res: Response) => {
     return res.status(500).json({ message: "Internal server error." });
   }
 };
-
-// delete acount 

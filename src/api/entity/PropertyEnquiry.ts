@@ -28,6 +28,9 @@ export class PropertyEnquiry extends BaseEntity {
   @Column({ type: 'uuid', nullable: true })
   ownerId!: string;
 
+  @Column({ type: 'boolean', default: false })
+  calling!: boolean;
+
   @ManyToOne(() => Property)
   @JoinColumn({ name: 'propertyId' })
   property!: Property;

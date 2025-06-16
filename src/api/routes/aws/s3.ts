@@ -6,7 +6,7 @@ import rateLimiter from '@/common/middleware/rateLimiter';
 const Router = express.Router();
 
 // Apply rate limiting to auth routes
-Router.use(rateLimiter);
+// Router.use(rateLimiter);
 
 // Public routes
 Router.post('/imgtokey', generateUploadUrl);

@@ -32,7 +32,7 @@ import { UserKyc } from './api/entity/userkyc';
 import { RepublishProperty } from './api/entity/RepublishProperties';
 
 import DashboardRoute from './api/routes/dashboardRoutes/DashboardRoutes';
-import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; // Ensure this path is correct
+import republishRoutes from './api/routes/dashboardRoutes/republishedRoute'; 
 import { PropertyImages } from './api/entity/PropertyImages';
 import { Location } from './api/entity/Location';
 import { initializeSocket } from './socket';
@@ -43,6 +43,10 @@ import NotificationRoutes from './api/routes/notificationsRoutes/NotificationRou
 import ConnectionRoutes from './api/routes/connection/ConnectionRoutes';
 import { Connections } from './api/entity/Connection';
 import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNotificationRoute'
+import reviewRoutes from './api/routes/review/reviewRoute';
+import { ModelLoader } from './ml-models/modelLoader';
+import { UserReview } from './api/entity/UserReview';
+import { RequirementEnquiry } from './api/entity/RequirementEnquiry';
 const logger = pino({ name: 'server start' });
 const app: Express = express();
 
@@ -69,10 +73,12 @@ const dataSourceOptions: DataSourceOptions = {
     PropertyEnquiry,
     Notifications,
     Connections,
+    UserReview,
+    RequirementEnquiry
   ],
   synchronize: true,
   logging: false,
-  entitySkipConstructor: true,
+  entitySkipConstructor: false,
   connectTimeout: 60000, // Increase connection timeout to 60 seconds
   extra: {
     connectionLimit: 10, // Limit connections to prevent overloading
@@ -98,8 +104,18 @@ app.use(
 
 // Initialize the DataSource before setting up routes
 AppDataSource.initialize()
-  .then(() => {
+  .then(async () => {
     logger.info('Database connection has been established successfully.');
+    
+    // Initialize ML models
+    try {
+      const modelLoader = ModelLoader.getInstance();
+      await modelLoader.loadModels();
+      logger.info('ML models loaded successfully');
+    } catch (error) {
+      logger.error('Error loading ML models:', error);
+      // Continue server startup even if models fail to load
+    }
   })
   .catch((error) => {
     logger.error('Error during Data Source initialization:', error);
@@ -143,6 +159,7 @@ app.use('/api/v1/republish', republishRoutes);
 app.use('/api/v1/notification', NotificationRoutes);
 app.use('/api/v1/connection' , ConnectionRoutes);
 app.use('/api/v1/notification', SocketNotificationRoute);
+app.use('/api/v1/review', reviewRoutes);
 
 
 app.get('/', (req, res) => {
@@ -161,6 +178,35 @@ app.use(errorHandler());
 
 // Initialize HTTP server and WebSocket
 const httpServer = initializeSocket(app);
+
+// Graceful shutdown handlers
+const gracefulShutdown = async () => {
+  logger.info('Received shutdown signal');
+
+  // Close HTTP server
+  if (httpServer) {
+    httpServer.close(() => {
+      logger.info('HTTP server closed');
+    });
+  }
+
+  // Close database connection
+  if (AppDataSource.isInitialized) {
+    try {
+      await AppDataSource.destroy();
+      logger.info('Database connection closed');
+    } catch (error) {
+      logger.error('Error closing database connection:', error);
+    }
+  }
+
+  // Exit process
+  process.exit(0);
+};
+
+// Handle termination signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {

@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { Address } from './Address';
 import { randomBytes } from 'crypto';
+import { RequirementEnquiry } from './RequirementEnquiry';
 
 @Entity('PropertyRequirement')
 export class PropertyRequirement extends BaseEntity {
@@ -56,6 +57,14 @@ export class PropertyRequirement extends BaseEntity {
   @Column({ type: 'float', nullable: true })
   plotArea!: number;
 
+  @Column({ type: 'simple-array', nullable: true })
+  enquiryIds!: string[];
+
+  @Column({ type: 'boolean', default: false })
+  isFound!: boolean;
+  
+  @OneToMany(() => RequirementEnquiry, (enquiry) => enquiry.requirement)
+  enquiries!: RequirementEnquiry[];
   
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;

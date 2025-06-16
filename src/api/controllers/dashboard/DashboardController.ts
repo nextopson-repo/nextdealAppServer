@@ -7,9 +7,20 @@ import { ErrorHandler } from '@/api/middlewares/error';
 import { PropertyRequirement } from '@/api/entity/PropertyRequirement';
 import { UserAuth } from '@/api/entity';
 import { Address } from '@/api/entity/Address';
-import { In } from 'typeorm';
+import { In, Between } from 'typeorm';
 
-export interface PropertyRequest extends Request {
+// Custom type for request user
+type RequestUser = {
+  id: string;
+  userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
+  email: string;
+  mobileNumber: string;
+  isAdmin?: boolean;
+  isSold?: boolean;
+  conversion?: string;
+};
+
+export interface PropertyRequest extends Omit<Request, 'user'> {
   body: {
     propertyId?: string;
     userId?: string;
@@ -42,16 +53,12 @@ export interface PropertyRequest extends Request {
     unit?: string;
     isSold?: boolean;
     conversion?: string;
+    // Analytics filter fields
+    dateRangeType?: 'lastMonth' | 'last3Months' | 'lastYear' | 'custom';
+    fromDate?: string; // ISO string, required if dateRangeType is 'custom'
+    toDate?: string;   // ISO string, required if dateRangeType is 'custom'
   };
-  user?: {
-    id: string;
-    userType: 'Agent' | 'Owner' | 'EndUser' | 'Investor';
-    email: string;
-    mobileNumber: string;
-    isAdmin?: boolean;
-    isSold?: boolean;
-    conversion?: string;
-  };
+  user?: RequestUser;
 }
 
 type PropertyResponseType = {
@@ -92,54 +99,146 @@ type PropertyResponseType = {
 
 export const analyticProperty = async (req: PropertyRequest, res: Response) => {
   try {
-    const { userId } = req.body;
+    const { userId, dateRangeType, fromDate, toDate } = req.body;
     if (!userId) {
       throw new ErrorHandler('User ID is required', 400);
     }
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
-    const SavedPropertyRepo = AppDataSource.getRepository(SavedProperty);
-
-    const property = await propertyRepo.find({
-      where: { userId },
-    });
-    const requirement = await requirementRepo.find({
-      where: { userId },
-    });
-    const savedProperties = await SavedPropertyRepo.find({
-      where: { ownerId: userId },
-    });
-
-    let inventoryValue = 0;
-    for (let i = 0; i < property.length; i++) {
-      inventoryValue += property[i].propertyPrice;
-    }
-    let soldInventoryValue = 0;
-    for (let i = 0; i < property.length; i++) {
-      if (property[i].isSold) {
-        soldInventoryValue += property[i].propertyPrice;
+    // Date range calculation
+    let startDate: Date, endDate: Date, prevStartDate: Date, prevEndDate: Date;
+    const today = new Date();
+    switch (dateRangeType) {
+      case 'lastMonth': {
+        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        startDate = new Date(endDate);
+        startDate.setMonth(startDate.getMonth() - 1);
+        prevEndDate = new Date(startDate);
+        prevStartDate = new Date(prevEndDate);
+        prevStartDate.setMonth(prevStartDate.getMonth() - 1);
+        break;
+      }
+      case 'last3Months': {
+        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        startDate = new Date(endDate);
+        startDate.setMonth(startDate.getMonth() - 3);
+        prevEndDate = new Date(startDate);
+        prevStartDate = new Date(prevEndDate);
+        prevStartDate.setMonth(prevStartDate.getMonth() - 3);
+        break;
+      }
+      case 'lastYear': {
+        endDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        startDate = new Date(endDate);
+        startDate.setFullYear(startDate.getFullYear() - 1);
+        prevEndDate = new Date(startDate);
+        prevStartDate = new Date(prevEndDate);
+        prevStartDate.setFullYear(prevStartDate.getFullYear() - 1);
+        break;
+      }
+      case 'custom': {
+        if (!fromDate || !toDate) {
+          throw new ErrorHandler('Custom date range requires fromDate and toDate', 400);
+        }
+        startDate = new Date(fromDate);
+        endDate = new Date(toDate);
+        // Calculate previous period
+        const diff = endDate.getTime() - startDate.getTime();
+        prevEndDate = new Date(startDate);
+        prevStartDate = new Date(startDate.getTime() - diff);
+        break;
+      }
+      default: {
+        throw new ErrorHandler('Invalid dateRangeType', 400);
       }
     }
-    let totalConversions = 0;
-    for (let i = 0; i < property.length; i++) {
-      if (property[i].conversion) {
-        totalConversions += property[i].conversion.length;
+    // Helper to get metrics for a period
+    const getMetrics = async (start: Date, end: Date) => {
+      const propertyRepo = AppDataSource.getRepository(Property);
+      const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
+      const SavedPropertyRepo = AppDataSource.getRepository(SavedProperty);
+      // Listings
+      const property = await propertyRepo.find({
+        where: { userId, createdAt: Between(start, end) },
+      });
+      // Requirements
+      const requirement = await requirementRepo.find({
+        where: { userId, createdAt: Between(start, end) },
+      });
+      // Impressions (saved properties)
+      const savedProperties = await SavedPropertyRepo.find({
+        where: { ownerId: userId, createdAt: Between(start, end) },
+      });
+      // Inventory Value
+      let inventoryValue = 0;
+      let soldInventoryValue = 0;
+      let totalConversions = 0;
+      let dealsClosed = 0;
+      for (let i = 0; i < property.length; i++) {
+        inventoryValue += property[i].propertyPrice;
+        if (property[i].isSold) {
+          soldInventoryValue += property[i].propertyPrice;
+          dealsClosed++;
+        }
+        if (property[i].conversion) {
+          totalConversions += property[i].conversion.length;
+        }
       }
-    }
+      return {
+        propertyCount: property.length,
+        requirementCount: requirement.length,
+        inventoryValue,
+        soldInventoryValue,
+        impressionCount: savedProperties.length,
+        conversionCount: totalConversions,
+        dealsClosed,
+      };
+    };
+    // Get current and previous period metrics
+    const [current, previous] = await Promise.all([
+      getMetrics(startDate, endDate),
+      getMetrics(prevStartDate, prevEndDate),
+    ]);
+    // Helper for percent change
+    const percentChange = (curr: number, prev: number) => {
+      if (prev === 0) return curr === 0 ? 0 : 100;
+      return ((curr - prev) / prev) * 100;
+    };
+    // Build response
     const result = {
-      propertyCount: property.length > 0 ? property.length : 0,
-      requirementCount: requirement.length > 0 ? requirement.length : 0,
-      inventoryValue: inventoryValue > 0 ? inventoryValue : 0,
-      soldInventoryValue: soldInventoryValue > 0 ? soldInventoryValue : 0,
-      impressionCount: savedProperties.length > 0 ? savedProperties.length : 0,
-      conversionCount: totalConversions > 0 ? totalConversions : 0,
+      listings: {
+        value: current.propertyCount,
+        percentChange: percentChange(current.propertyCount, previous.propertyCount),
+      },
+      requirements: {
+        value: current.requirementCount,
+        percentChange: percentChange(current.requirementCount, previous.requirementCount),
+      },
+      inventoryValue: {
+        value: current.inventoryValue,
+        percentChange: percentChange(current.inventoryValue, previous.inventoryValue),
+      },
+      impressions: {
+        value: current.impressionCount,
+        percentChange: percentChange(current.impressionCount, previous.impressionCount),
+      },
+      conversions: {
+        value: current.conversionCount,
+        percentChange: percentChange(current.conversionCount, previous.conversionCount),
+      },
+      dealsClosed: {
+        value: current.dealsClosed,
+        percentChange: percentChange(current.dealsClosed, previous.dealsClosed),
+      },
+      period: {
+        from: startDate,
+        to: endDate,
+      },
     };
     return res.status(200).json({
       message: 'Analytic properties retrieved successfully',
       result,
     });
   } catch (error: any) {
-    res.status(500).json({ message: error });
+    res.status(500).json({ message: error.message || error });
   }
 };
 
@@ -184,9 +283,8 @@ export const createSavedProperty = async (req: Request, res: Response) => {
     });
   }
 };
-
+ 
 // saved property
-
 export const getSavedProperties = async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
@@ -228,6 +326,28 @@ export const getSavedProperties = async (req: Request, res: Response) => {
         user,
       },
     });
+  } catch (error: any) {
+    res.status(500).json({ message: error.message || 'Internal server error' });
+  }
+};
+
+// remove saved property
+export const removeSavedProperty = async (req: Request, res: Response) => {
+  try {
+    const { savedPropertyId, userId } = req.body;
+    if (!savedPropertyId || !userId) {
+      return res.status(400).json({ message: 'Saved property ID and user ID are required' });
+    }
+    const savedPropertyRepo = AppDataSource.getRepository(SavedProperty);
+    const savedProperty = await savedPropertyRepo.findOne({
+      where: { propertyId: savedPropertyId, userId },
+    });
+
+    if (!savedProperty) {
+      return res.status(404).json({ message: 'Saved property not found' });
+    }
+    await savedPropertyRepo.remove(savedProperty);
+    return res.status(200).json({ message: 'Saved property removed successfully' });
   } catch (error: any) {
     res.status(500).json({ message: error.message || 'Internal server error' });
   }
