@@ -144,6 +144,7 @@ app.use('/api/v1/notification', NotificationRoutes);
 app.use('/api/v1/connection' , ConnectionRoutes);
 app.use('/api/v1/notification', SocketNotificationRoute);
 
+
 app.get('/', (req, res) => {
   res.send('Welcome to nextdeal');
 });
