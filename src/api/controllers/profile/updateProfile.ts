@@ -3,7 +3,7 @@ import { AppDataSource } from "@/server";
 import { UserAuth } from "@/api/entity";
 
 export const updateUserProfile = async (req: Request, res: Response) => {
-  const {userId, fullName, email, userType, userProfileKey } = req.body;
+  const {userId, fullName, email, userType, userProfileKey, workingWithAgent } = req.body;
   try {
     const userRepo = AppDataSource.getRepository(UserAuth)
     const user = await userRepo.findOne({ where: { id: userId } });
@@ -12,6 +12,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
     if (email) user.email = email;
     if (userType) user.userType = userType;
     if (userProfileKey) user.userProfileKey = userProfileKey;
+    if (workingWithAgent) user.WorkingWithAgent = workingWithAgent;
     await user.save();
     return res.json({ message: "Profile updated", user });
   } catch (error) {

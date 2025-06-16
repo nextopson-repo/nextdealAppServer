@@ -18,7 +18,7 @@ type PropertyResponseType = {
 
 export const createPropertyEnquiry = async (req: Request, res: Response) => {
   try {
-    const { propertyId, userId } = req.body;
+    const { propertyId, userId, Calling, ownerId } = req.body;
 
     if (!propertyId || !userId) {
       return res.status(400).json({ message: 'Please provide all required fields' });
@@ -40,7 +40,8 @@ export const createPropertyEnquiry = async (req: Request, res: Response) => {
     const propertyEnquiry = propertyEnquiryRepo.create({
       propertyId,
       userId,
-      ownerId: propertyDetails.userId,
+      ownerId:ownerId ? ownerId: propertyDetails.userId ,
+      calling: Calling ? Calling : false,
     });
     const newPropertyEnquiry = await propertyEnquiryRepo.save(propertyEnquiry);
     res.status(201).json({

@@ -2,7 +2,7 @@ import { UserAuth } from "@/api/entity";
 import { Connections } from "@/api/entity/Connection";
 import { AppDataSource } from "@/server";
 import { Request, Response } from 'express';
-import { sendNotification } from "../notification/socketNotificationController";
+import { generateNotification } from "../notification/NotificationController";
 import { In } from "typeorm";
 import { generatePresignedUrl } from "../s3/awsControllers";
 
@@ -39,12 +39,12 @@ export const sendConnectionRequest = async (req: Request, res: Response): Promis
     });
     await connectionRepository.save(newConnection);
 
-    // Create a notification
-    await sendNotification(
+    // Create a notification for the receiver
+    await generateNotification(
       receiverId,
-      `${requester?.firstName} ${requester?.lastName} Sent you a connection Request`,
-      requester?.profilePictureUploadId,
-      `/settings/ManageConnections`
+      `${requester.firstName} ${requester.lastName} sent you a follow request`,
+      requester.userProfileKey || '',
+      'connection_request'
     );
 
     return res.status(201).json({
@@ -63,19 +63,21 @@ export const updateConnectionStatus = async (req: Request, res: Response): Promi
 
   try {
     const connectionRepository = AppDataSource.getRepository(Connections);
+    const userRepository = AppDataSource.getRepository(UserAuth);
 
     const connection = await connectionRepository.findOne({
       where: [{ requesterId: connectionId, receiverId: userId }],
     });
+
     if (!connection) {
       return res.status(404).json({ message: 'Connection not found.' });
     }
 
-    if (connection.status == 'accepted') {
+    if (connection.status === 'accepted') {
       return res.status(400).json({ message: 'Connection request already accepted' });
     }
 
-    if (connection.status == 'rejected') {
+    if (connection.status === 'rejected') {
       return res.status(400).json({ message: 'Connection request already rejected' });
     }
 
@@ -84,19 +86,26 @@ export const updateConnectionStatus = async (req: Request, res: Response): Promi
     }
 
     connection.status = status as 'accepted' | 'rejected';
-    const data = await connectionRepository.save(connection);
+    const updatedConnection = await connectionRepository.save(connection);
 
-    // Create a notification
-    const notification = await sendNotification(
-      connection.requester.id,
-      `${connection.receiver.firstName} ${connection.receiver.lastName} ${data?.status} your connection request`,
-      connection?.receiver?.profilePictureUploadId,
-      `/settings/ManageConnections`
-    );
-    if (notification) {
-      return res.status(200).json({ message: `Connection ${status} successfully.`, data });
+    // Get receiver details for notification
+    const receiver = await userRepository.findOne({ where: { id: userId } });
+    if (!receiver) {
+      return res.status(404).json({ message: 'Receiver not found.' });
     }
-    return res.status(500).json({ message: 'Internal Server Error please retry' });
+
+    // Create notification for the requester
+    await generateNotification(
+      connection.requesterId,
+      `${receiver.firstName} ${receiver.lastName} ${status} your follow request`,
+      receiver.userProfileKey || '',
+      'connection_response'
+    );
+
+    return res.status(200).json({ 
+      message: `Connection ${status} successfully.`, 
+      data: updatedConnection 
+    });
   } catch (error: any) {
     console.error('Error updating connection status:', error);
     return res.status(500).json({ message: 'Internal Server Error' });
@@ -117,7 +126,7 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
     });
 
     if (!connections || connections.length === 0) {
-      return res.status(404).json({ message: 'No accepted connections found.' });
+      return res.status(404).json({ message: 'No accepted followings found.' });
     }
 
     const userRepository = AppDataSource.getRepository(UserAuth);
@@ -128,7 +137,7 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
 
     const users = await userRepository.find({
       where: { id: In(userIds) },
-      select: ['id', 'firstName', 'lastName', 'profilePictureUploadId', 'userRole'],
+      select: ['id', 'firstName', 'lastName', 'userProfileKey', 'userType'],
     });
 
     if (!users || users.length === 0) {
@@ -152,8 +161,8 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
     const result = await Promise.all(
       connections.map(async (connection) => {
         const user = users.find((user) => user.id === connection.requesterId || user.id === connection.receiverId);
-        const profilePictureUrl = user?.profilePictureUploadId
-          ? await generatePresignedUrl(user.profilePictureUploadId)
+        const profilePictureUrl = user?.userProfileKey
+          ? await generatePresignedUrl(user.userProfileKey)
           : null;
         const isMutual = userConnectionIds.has(user?.id || '');
         return {
@@ -161,9 +170,9 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
           userId: user?.id,
           firstName: user?.firstName,
           lastName: user?.lastName,
-          userRole: user?.userRole,
+          userType: user?.userType,
           profilePictureUrl: profilePictureUrl,
-          meeted: connection.updatedAt ? formatTimestamp(connection.updatedAt) : formatTimestamp(connection.createdAt),
+          // meeted: connection.updatedAt ? formatTimestamp(connection.updatedAt) : formatTimestamp(connection.createdAt),
           mutual: isMutual,
         };
       })
@@ -175,6 +184,46 @@ export const getUserConnections = async (req: Request, res: Response): Promise<R
     return res.status(500).json({ message: 'Internal Server Error' });
   }
 };
+
+
+// get user followers
+export const getUserFollowers = async (req: Request, res: Response): Promise<Response> => {
+  const { userId } = req.body;
+
+  try {
+    const connectionRepository = AppDataSource.getRepository(Connections);
+    const userRepository = AppDataSource.getRepository(UserAuth);
+    const user = await userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    const followers = await connectionRepository.find({
+      where: { receiverId: userId, status: 'accepted' },
+    });
+    const followersDetails = await userRepository.find({
+      where: { id: In(followers.map((follower) => follower.requesterId)) },
+    });
+    const result = await Promise.all(
+      followersDetails.map(async (follower) => {
+        const profilePictureUrl = follower.userProfileKey
+          ? await generatePresignedUrl(follower.userProfileKey)
+          : null;
+        return {
+          userId: follower.id,
+          firstName: follower.firstName,
+          lastName: follower.lastName,
+          profilePictureUrl: profilePictureUrl,
+        };
+      })
+    );
+    return res.status(200).json({ followers: result });
+  } catch (error: any) {
+    console.error('Error fetching user followers:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
+
 
 // Remove a connection
 export const removeConnection = async (req: Request, res: Response): Promise<Response> => {
@@ -227,15 +276,15 @@ export const getUserConnectionRequests = async (req: Request, res: Response) => 
 
     const users = await userRepository.find({
       where: { id: In(userIds) },
-      select: ['id', 'firstName', 'lastName', 'profilePictureUploadId', 'userRole'],
+      select: ['id', 'firstName', 'lastName', 'userProfileKey', 'userType'],
     });
 
     // Create a response with connection requests and their respective user details
     const response = await Promise.all(
       connectionRequests.map(async (connection) => {
         const user = users.find((u) => u.id === connection.requesterId);
-        const profilePictureUploadUrl = user?.profilePictureUploadId
-          ? await generatePresignedUrl(user.profilePictureUploadId)
+        const profilePictureUploadUrl = user?.userProfileKey
+          ? await generatePresignedUrl(user.userProfileKey)
           : null;
 
         return {
@@ -333,8 +382,8 @@ export const ConnectionsSuggestionController = async (req: Request, res: Respons
         firstName: user.firstName,
         lastName: user.lastName,
         occupation: user.occupation,
-        userRole: user.userRole,
-        profilePictureUrl: user.profilePictureUploadId ? await generatePresignedUrl(user.profilePictureUploadId) : null,
+        userType: user.userType,
+        profilePictureUrl: user.userProfileKey ? await generatePresignedUrl(user.userProfileKey) : null,
       }))
     );
 

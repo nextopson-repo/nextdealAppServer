@@ -10,9 +10,7 @@ import { In, Between, Not } from 'typeorm';
 import { UserKyc } from '@/api/entity/userkyc';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
-import { Connections } from '@/api/entity/Connection';
 import { RepublishProperty } from '@/api/entity/RepublishProperties';
-import { sendEmailNotification, sendEmailOTP } from '@/common/utils/mailService';
 
 // Custom type for request user
 type RequestUser = {
@@ -216,119 +214,41 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
 
 export const getPropertyById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { propertyId, userId, isRepublish = false } = req.body;
+    const { propertyId , userId } = req.body;
 
     if (!propertyId) {
       return res.status(400).json({ message: 'Property ID is required' });
     }
 
     const propertyRepo = AppDataSource.getRepository(Property);
-    const propertyRepublishRepo = AppDataSource.getRepository(RepublishProperty);
+    const property = await propertyRepo.findOne({
+      where: { id: propertyId },
+      relations: ['address', 'propertyImages'],
+    });
+
+    if (!property) {
+      return res.status(404).json({ message: 'Property not found' });
+    }
+
     const userRepo = AppDataSource.getRepository(UserAuth);
-    
-    let property: Property;
-    let republishProperty: RepublishProperty | null = null;
-    
-    if (isRepublish) {
-      republishProperty = await propertyRepublishRepo.findOne({
-        where: { propertyId },
-        relations: ['address', 'propertyImages'],
-      });
-      if (!republishProperty) {
-        return res.status(404).json({ message: 'Republished property not found' });
-      }
-      // Get the original property for republished properties
-      const originalProperty = await propertyRepo.findOne({
-        where: { id: republishProperty.propertyId },
-        relations: ['address', 'propertyImages'],
-      });
-      if (!originalProperty) {
-        return res.status(404).json({ message: 'Original property not found' });
-      }
-      property = originalProperty;
-    } else {
-      const foundProperty = await propertyRepo.findOne({
-        where: { id: propertyId },
-        relations: ['address', 'propertyImages'],
-      });
-      if (!foundProperty) {
-        return res.status(404).json({ message: 'Property not found' });
-      }
-      property = foundProperty;
-    }
+    const user = await userRepo.findOne({
+      where: { id: property.userId },
+      select: ['fullName', 'mobileNumber', 'email', 'userProfileKey', "userType"],
+    });
 
-    let user;
-    if (isRepublish && republishProperty) {
-      user = await userRepo.findOne({
-        where: { id: republishProperty.ownerId },
-        select: ['fullName', 'mobileNumber', 'email', 'userProfileKey', "userType"],
-      });
-    } else {
-      user = await userRepo.findOne({
-        where: { id: property.userId },
-        select: ['fullName', 'mobileNumber', 'email', 'userProfileKey', "userType"],
-      });
-    }
-
-    const userKycRepo = AppDataSource.getRepository(UserKyc);
-    let userKyc;
-    if (isRepublish && republishProperty) {
-      userKyc = await userKycRepo.findOne({
-        where: { userId: republishProperty.ownerId },
-      });
-    } else {
-      userKyc = await userKycRepo.findOne({
-        where: { userId: property.userId },
-      });
-    }
-
-    // Get connection status if userId is provided
-    let connectionStatus = null;
-    if (isRepublish && republishProperty) {
-      connectionStatus = republishProperty.status;
-    } else {
-      if (userId) {
-        if (userId === property.userId) {
-          connectionStatus = "";
-        } else {
-          const connectionRepo = AppDataSource.getRepository(Connections);
-          const connection = await connectionRepo.findOne({
-            where: [
-              { requesterId: userId, receiverId: property.userId },
-              { requesterId: property.userId, receiverId: userId }
-            ]
-          });
-          connectionStatus = connection ? connection.status : null;
-        }
-      }
-    }
-
-    // Handle user profile image
-    let userProfileImage = "https://randomuser.me/api/portraits/men/1.jpg";
-    if (user?.userProfileKey) {
-      try {
-        const presignedUrl = await generatePresignedUrl(user.userProfileKey);
-        if (presignedUrl && presignedUrl.startsWith('http')) {
-          userProfileImage = presignedUrl;
-        }
-      } catch (error) {
-        console.error('Error generating presigned URL:', error);
-      }
-    }
+    const userKycRepo = AppDataSource.getRepository(UserKyc)
+    const userKyc = await userKycRepo.findOne({
+      where: { userId: property.userId },
+    });
 
     const propertyResponse = await mapPropertyResponse(property);
     return res.status(200).json({
       message: 'Property retrieved successfully',
       property: propertyResponse,
-      owner: {
-        fullName: user?.fullName,
-        mobileNumber: user?.mobileNumber,
-        email: user?.email,
-        userProfile: userProfileImage,
-        userType: user?.userType,
-      },
+      owner: user,
       rera: userKyc?.rera,
-      connectionStatus
+      connectionStatues: "Pending"
+
     });
   } catch (error) {
     return res.status(500).json({ message: 'Server error' });
@@ -439,7 +359,10 @@ export const searchProperty = async (req: Request, res: Response) => {
     const userRepo = AppDataSource.getRepository(UserAuth);
 
     // Build dynamic where clause
-    const whereClause: any = {};
+    const whereClause: any = {
+      isActive: true,
+      isSold: false
+    };
 
     // Only add subCategory filter if it's not "All"
     if (subCategory && subCategory !== 'All') {
@@ -510,7 +433,6 @@ export const searchProperty = async (req: Request, res: Response) => {
           select: ['userType', 'WorkingWithAgent']
         });
 
-        // If requesting user is an agent and property owner is an owner who doesn't work with agents
         if (userType === 'Agent' && 
             propertyOwner?.userType === 'Owner' && 
             propertyOwner?.WorkingWithAgent === false) {
@@ -570,24 +492,58 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
+    const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
+    const republishPropertyRepo = AppDataSource.getRepository(RepublishProperty);
 
-    // Get total count
-    const totalCount = await propertyRepo.count({
-      where: { subCategory }
-    });
-
-    // Get properties with pagination
+    // Get all properties
     const properties = await propertyRepo.find({
-      where: { subCategory },
+      where: {
+        isActive: true,
+        isSold: false
+      },
       relations: ['address', 'propertyImages'],
-      skip,
-      take: Number(limit),
       order: {
         createdAt: 'DESC'
       }
     });
 
-    if (!properties.length) {
+    // Filter by subCategory
+    const filteredProperties = properties.filter(
+      property => property.subCategory.toLowerCase() === subCategory.toLowerCase()
+    );
+
+    // Get republished properties
+    const republishedProperties = await republishPropertyRepo.find({
+      where: {
+        status: 'Accepted'
+      }
+    });
+
+    // Get property enquiries
+    const propertyEnquiries = await propertyEnquiryRepo.find({
+      where: {
+        propertyId: In(filteredProperties.map(p => p.id))
+      }
+    });
+
+    // Count enquiries
+    const enquiryCounts = propertyEnquiries.reduce((acc, enquiry) => {
+      acc[enquiry.propertyId] = (acc[enquiry.propertyId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Combine and sort by enquiries
+    const allProperties = [
+      ...filteredProperties,
+      ...republishedProperties
+        .map(rp => filteredProperties.find(p => p.id === rp.propertyId))
+        .filter((p): p is Property => p !== undefined)
+    ].sort((a, b) => (enquiryCounts[b.id] || 0) - (enquiryCounts[a.id] || 0));
+
+    // Apply pagination
+    const paginatedProperties = allProperties.slice(skip, skip + Number(limit));
+
+    if (!paginatedProperties.length) {
       return res.status(200).json({
         success: true,
         message: 'No properties found',
@@ -599,15 +555,14 @@ export const trendingProperty = async (req: Request, res: Response) => {
       });
     }
 
-    // Filter properties based on userType and WorkingWithAgent
-    const filteredProperties = await Promise.all(
-      properties.map(async (property) => {
+    // Filter by user type
+    const filteredByUserType = await Promise.all(
+      paginatedProperties.map(async (property) => {
         const propertyOwner = await userRepo.findOne({
           where: { id: property.userId },
           select: ['userType', 'WorkingWithAgent']
         });
 
-        // If requesting user is an agent and property owner is an owner who doesn't work with agents
         if (userType === 'Agent' && 
             propertyOwner?.userType === 'Owner' && 
             propertyOwner?.WorkingWithAgent === false) {
@@ -617,25 +572,25 @@ export const trendingProperty = async (req: Request, res: Response) => {
       })
     );
 
-    // Remove null values from filtered properties
-    const validProperties = filteredProperties.filter(property => property !== null);
+    const validProperties = filteredByUserType.filter((property): property is Property => property !== null);
 
-    const userIds = [...new Set(validProperties.map((p) => p.userId))];
-    const users = userIds.length > 0
-      ? await userRepo.find({
-          where: { id: In(userIds) },
-          select: ['id', 'fullName', 'userType', 'userProfileKey', 'mobileNumber']
-        })
-      : [];
+    // Get user details
+    const userIds = [...new Set(validProperties.map(p => p.userId))];
+    const users = await userRepo.find({
+      where: { id: In(userIds) },
+      select: ['id', 'fullName', 'userType', 'userProfileKey', 'mobileNumber']
+    });
 
-    const userMap = new Map(users.map((user) => [user.id, user.fullName]));
+    const userMap = new Map(users.map(user => [user.id, user.fullName]));
 
+    // Map properties with details
     const propertiesWithDetails = await Promise.all(
       validProperties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
         return {
           ...propertyResponse,
           ownerName: userMap.get(property.userId) || 'Unknown',
+          enquiries: enquiryCounts[property.id] || 0
         };
       })
     );
@@ -644,13 +599,18 @@ export const trendingProperty = async (req: Request, res: Response) => {
       success: true,
       message: 'Properties retrieved successfully',
       properties: propertiesWithDetails,
-      totalCount: validProperties.length,
+      totalCount: allProperties.length,
       currentPage: Number(page),
-      totalPages: Math.ceil(validProperties.length / Number(limit)),
-      hasMore: skip + validProperties.length < totalCount
+      totalPages: Math.ceil(allProperties.length / Number(limit)),
+      hasMore: skip + validProperties.length < allProperties.length
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Error in trendingProperty:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 
@@ -670,30 +630,46 @@ export const offeringProperty = async (req: Request, res: Response) => {
 
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
-    
-    // Build where clause
-    let whereClause: any = {};
-    if (filter !== 'All') {
-      whereClause.subCategory = filter;
-    }
-    
-    // Get total count
-    const totalCount = await propertyRepo.count({
-      where: whereClause
-    });
+    const republishPropertyRepo = AppDataSource.getRepository(RepublishProperty);
 
-    // Get properties with pagination
+    // Get all properties
     const properties = await propertyRepo.find({
-      where: whereClause,
+      where: {
+        isActive: true,
+        isSold: false
+      },
       relations: ['address', 'propertyImages'],
-      skip,
-      take: Number(limit),
       order: {
         createdAt: 'DESC'
       }
     });
 
-    if (!properties || properties.length === 0) {
+    // Filter by subCategory if not 'All'
+    const filteredProperties = filter === 'All' 
+      ? properties 
+      : properties.filter(
+          property => property.subCategory.toLowerCase() === filter.toLowerCase()
+        );
+
+    // Get republished properties
+    const republishedProperties = await republishPropertyRepo.find({
+      where: {
+        status: 'Accepted'
+      }
+    });
+
+    // Combine properties
+    const allProperties = [
+      ...filteredProperties,
+      ...republishedProperties
+        .map(rp => filteredProperties.find(p => p.id === rp.propertyId))
+        .filter((p): p is Property => p !== undefined)
+    ];
+
+    // Apply pagination
+    const paginatedProperties = allProperties.slice(skip, skip + Number(limit));
+
+    if (!paginatedProperties.length) {
       return res.status(200).json({
         success: true,
         message: 'No properties found',
@@ -707,15 +683,14 @@ export const offeringProperty = async (req: Request, res: Response) => {
       });
     }
 
-    // Filter properties based on userType and WorkingWithAgent
-    const filteredProperties = await Promise.all(
-      properties.map(async (property) => {
+    // Filter by user type
+    const filteredByUserType = await Promise.all(
+      paginatedProperties.map(async (property) => {
         const propertyOwner = await userRepo.findOne({
           where: { id: property.userId },
           select: ['userType', 'WorkingWithAgent']
         });
 
-        // If requesting user is an agent and property owner is an owner who doesn't work with agents
         if (userType === 'Agent' && 
             propertyOwner?.userType === 'Owner' && 
             propertyOwner?.WorkingWithAgent === false) {
@@ -725,10 +700,9 @@ export const offeringProperty = async (req: Request, res: Response) => {
       })
     );
 
-    // Remove null values from filtered properties
-    const validProperties = filteredProperties.filter(property => property !== null);
+    const validProperties = filteredByUserType.filter((property): property is Property => property !== null);
 
-    // Map properties with presigned URLs
+    // Map properties with URLs
     const propertiesWithUrls = await Promise.all(
       validProperties.map(async (property) => {
         try {
@@ -741,21 +715,22 @@ export const offeringProperty = async (req: Request, res: Response) => {
       })
     );
 
-    // Filter out any null values from failed mappings
-    const validPropertiesWithUrls = propertiesWithUrls.filter(property => property !== null);
+    const validPropertiesWithUrls = propertiesWithUrls.filter(
+      (property): property is PropertyResponseType => property !== null
+    );
 
-    // Get owner information for each property
+    // Get owner information
     const propertiesWithOwner = await Promise.all(
       validPropertiesWithUrls.map(async (property) => {
         try {
           const user = await userRepo.findOne({
             where: { id: property.userId },
-            select: ['fullName', 'userType'],
+            select: ['fullName', 'userType']
           });
           return {
             ...property,
-            ownerName: user ? user.fullName : 'Unknown',
-            ownerType: user ? user.userType : 'Unknown'
+            ownerName: user?.fullName || 'Unknown',
+            ownerType: user?.userType || 'Unknown'
           };
         } catch (error) {
           console.error('Error getting owner info:', error);
@@ -773,15 +748,15 @@ export const offeringProperty = async (req: Request, res: Response) => {
       message: 'Properties fetched successfully',
       data: {
         property: propertiesWithOwner,
-        totalCount: validPropertiesWithUrls.length,
+        totalCount: allProperties.length,
         currentPage: Number(page),
-        totalPages: Math.ceil(validPropertiesWithUrls.length / Number(limit)),
-        hasMore: skip + validPropertiesWithUrls.length < totalCount
+        totalPages: Math.ceil(allProperties.length / Number(limit)),
+        hasMore: skip + validPropertiesWithUrls.length < allProperties.length
       }
     });
   } catch (error) {
     console.error('Error in offeringProperty:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       success: false,
       message: 'Server error',
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -1108,132 +1083,3 @@ export const getPropertyLeands = async (req: Request, res: Response) => {
 };
 
 
-//  share property email notification
-export const sharePropertyEmailNotification = async (req: Request, res: Response) => {
-  try {
-    const { propertyId, userId } = req.body;
-
-    if (!propertyId || !userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'Property ID and User ID are required',
-      });
-    }
-
-    const propertyRepo = AppDataSource.getRepository(Property);
-    const userRepo = AppDataSource.getRepository(UserAuth);
-
-    // Get property with relations
-    const property = await propertyRepo.findOne({
-      where: { id: propertyId },
-      relations: ['address', 'propertyImages'],
-    });
-
-    if (!property) {
-      return res.status(404).json({
-        success: false,
-        message: 'Property not found',
-      });
-    }
-
-    // Get user who is sharing
-    const user = await userRepo.findOne({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found',
-      });
-    }
-
-    // Get property owner
-    const propertyOwner = await userRepo.findOne({
-      where: { id: property.userId },
-    });
-
-    if (!propertyOwner || !propertyOwner.email) {
-      return res.status(404).json({
-        success: false,
-        message: 'Property owner not found or email not available',
-      });
-    }
-
-    // Get property image URL
-    let propertyImageUrl = '';
-    if (property.propertyImages && property.propertyImages.length > 0) {
-      const firstImage = property.propertyImages[0];
-      if (firstImage.presignedUrl) {
-        propertyImageUrl = firstImage.presignedUrl;
-      } else if (firstImage.imageKey) {
-        propertyImageUrl = await generatePresignedUrl(firstImage.imageKey);
-      }
-    }
-
-    const email = propertyOwner.email;
-    const subject = `NextDeal : ${user.fullName} sharing your property ${property.propertyName || property.projectName}`;
-    const body = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
-      <div style="background-color: #001A48; padding: 20px; border-radius: 8px 8px 0 0; margin: -20px -20px 20px -20px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Property Details</h1>
-      </div>
-
-      <div style="margin-bottom: 20px;">
-        <p style="color: #666666; font-size: 16px; line-height: 1.5;">Dear ${propertyOwner.fullName},</p>
-        <p style="color: #666666; font-size: 16px; line-height: 1.5;">We are pleased to share the following property details with you:</p>
-      </div>
-
-      <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h2 style="color: #001A48; margin-top: 0; font-size: 20px;">${property.propertyName || property.projectName}</h2>
-        
-        <div style="margin: 15px 0; padding: 15px; background-color: #ffffff; border-radius: 6px; border: 1px solid #e0e0e0;">
-          <p style="color: #333333; font-size: 15px; line-height: 1.6; margin: 0;">${property.description || 'No description available'}</p>
-        </div>
-
-        <div style="display: flex; justify-content: space-between; margin: 15px 0;">
-          <div style="flex: 1;">
-            <p style="color: #001A48; font-size: 18px; font-weight: bold; margin: 0;">₹${property.propertyPrice || 'Price not available'}</p>
-          </div>
-          <div style="flex: 1; text-align: right;">
-            <p style="color: #666666; font-size: 15px; margin: 0;">${property.address?.locality || property.address?.city || 'Location not available'}</p>
-          </div>
-        </div>
-      </div>
-
-      ${propertyImageUrl ? `
-      <div style="margin-bottom: 20px;">
-        <img src="${propertyImageUrl}" alt="Property Image" style="width: 100%; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" />
-      </div>
-      ` : ''}
-
-      <div style="text-align: center; margin: 25px 0;">
-        <a href="https://nextdeal.in/property/${property.id}" style="display: inline-block; background-color: #001A48; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">View Property Details</a>
-      </div>
-
-      <div style="border-top: 1px solid #e0e0e0; padding-top: 20px; margin-top: 20px;">
-        <p style="color: #666666; font-size: 14px; margin: 0;">Shared by: ${user.fullName}</p>
-      </div>
-
-      <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
-        <p style="color: #666666; font-size: 14px; margin: 0;">Best regards,</p>
-        <p style="color: #001A48; font-size: 16px; font-weight: bold; margin: 5px 0 0 0;">NextDeal Team</p>
-      </div>
-    </div>
-    `;
-
-    await sendEmailNotification(email, subject, body);
-
-    return res.status(200).json({
-      success: true,
-      message: 'Email sent successfully',
-    });
-  } catch (error) {
-    console.error('Error in sharePropertyEmailNotification:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Server error',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-}

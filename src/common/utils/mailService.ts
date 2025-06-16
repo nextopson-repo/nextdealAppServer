@@ -47,3 +47,22 @@ export const sendEmailOTP = async (email: string, otp: string) => {
     throw error;
   }
 }; 
+
+export const sendEmailNotification = async (email:any, subject: string, body: any) => {
+  try {
+    const mailOptions = {
+      from: env.SMTP_FROM,
+      to: email,
+      subject: subject,
+      html: body,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent: %s', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+};
+

@@ -4,6 +4,54 @@ import { UserAuth } from '@/api/entity/UserAuth';
 import { AppDataSource } from '@/server';
 import { Request, Response } from 'express';
 import { RequirementEnquiry } from '../../entity/RequirementEnquiry';
+import { generatePresignedUrl } from '../s3/awsControllers';
+
+
+const formatTimeStamp = (timeStamp: Date): string => {
+    const now = new Date();
+    const diffMs = now.getTime() - timeStamp.getTime();
+  
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const weeks = Math.floor(days / 7);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+  
+    if (seconds < 60) {
+      return 'just now';
+    } else if (minutes < 60) {
+      return `${minutes}min`;
+    } else if (hours < 24) {
+      return `${hours}h`;
+    } else if (days < 7) {
+      return `${days}d`;
+    } else if (weeks < 4) {
+      return `${weeks}w`;
+    } else if (months < 12) {
+      return `${months}m`;
+    } else if (years < 1000) {
+      return `${years}y`;
+    } else {
+      return '1000y+';
+    }
+  };
+
+  const formatBudget = (min: string, max: string) => {
+    const formatAmount = (amount: string) => {
+      const num = parseFloat(amount);
+      if (num >= 10000000) return `${(num / 10000000).toFixed(0)} Cr`;
+      if (num >= 100000) return `${(num / 100000).toFixed(0)} L`;
+      if (num >= 1000) return `${(num / 1000).toFixed(0)} K`;
+      return amount;
+    };
+
+    if (min && max) {
+      return `${formatAmount(min)} - ${formatAmount(max)}`;
+    }
+    return 'Budget not specified';
+  };
 
 export const CreateOrUpdateRequirement = async (req: Request, res: Response) => {
     try {
@@ -114,6 +162,107 @@ export const CreateOrUpdateRequirement = async (req: Request, res: Response) => 
     }
 };
 
+// get all requirements
+export const getAllRequirements = async (req: Request, res: Response) => {
+    const { userId, sort, filter = {}, location = {} } = req.body;
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+    try {
+        const requirementRepo = AppDataSource.getRepository(PropertyRequirement);
+        const userRepo = AppDataSource.getRepository(UserAuth);
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required' });
+        }
+
+        // Use query builder for flexible filtering
+        let qb = requirementRepo.createQueryBuilder('requirement')
+            .leftJoinAndSelect('requirement.addressId', 'address')
+            .where('requirement.isFound = :isFound', { isFound: false });
+
+        // Location filter
+        if (location.state) {
+            qb = qb.andWhere('address.state = :state', { state: location.state });
+        }
+        if (location.city) {
+            qb = qb.andWhere('address.city = :city', { city: location.city });
+        }
+
+        // Price range filter
+        if (filter.priceRange) {
+            if (filter.priceRange.min) qb = qb.andWhere('requirement.minBudget >= :minBudget', { minBudget: filter.priceRange.min * 1000 });
+            if (filter.priceRange.max) qb = qb.andWhere('requirement.maxBugdget <= :maxBugdget', { maxBugdget: filter.priceRange.max * 1000 });
+        }
+
+        // Need for (Sale/Lease)
+        if (filter.needFor) qb = qb.andWhere('requirement.isSale = :isSale', { isSale: filter.needFor === 'Sale' });
+
+        // Furnishing type
+        if (filter.furnishingType) qb = qb.andWhere('requirement.furnishing = :furnishing', { furnishing: filter.furnishingType });
+
+        // BHK types
+        if (filter.bhkTypes && filter.bhkTypes.length > 0) {
+            qb = qb.andWhere('requirement.bhks IN (:...bhks)', { bhks: filter.bhkTypes.map((b: string) => parseInt(b)) });
+        }
+
+        // Property types
+        if (filter.propertyTypes && filter.propertyTypes.length > 0) {
+            qb = qb.andWhere('requirement.subCategory IN (:...subCategories)', { subCategories: filter.propertyTypes });
+        }
+
+        // Sorting
+        if (sort === 'oldToNew') {
+            qb = qb.orderBy('requirement.createdAt', 'ASC');
+        } else {
+            qb = qb.orderBy('requirement.createdAt', 'DESC');
+        }
+
+        qb = qb.skip(skip).take(Number(limit));
+
+        const requirements = await qb.getMany();
+        console.log('Fetched requirements count:', requirements.length);
+        const requirementsWithuserDetails = await Promise.all(requirements.map(async (requirement) => {
+            let user = null;
+            if (requirement.userId) {
+                user = await userRepo.findOne({ where: { id: requirement.userId } });
+            }
+            return {
+                requirementId: requirement.id,
+                category: requirement.category,
+                subCategory: requirement.subCategory,
+                bhks: requirement.bhks,
+                furnishing: requirement.furnishing,
+                isSale: requirement.isSale,
+                bhk: requirement.bhks,
+                landArea: requirement.landArea,
+                plotArea: requirement.plotArea,
+                isFound: requirement.isFound,
+                enquiryCount: Array.isArray(requirement.enquiryIds) ? requirement.enquiryIds.length : 0,
+                budget: formatBudget(requirement.minBudget, requirement.maxBugdget),
+                address: requirement.addressId ? {
+                    city: requirement.addressId.city,
+                    state: requirement.addressId.state
+                } : null,
+                createdAt: formatTimeStamp(requirement.createdAt),
+                user: {
+                    fullName: user?.fullName,
+                    userProfile: user?.userProfileKey ? generatePresignedUrl(user?.userProfileKey) : "https://randomuser.me/api/portraits/men/1.jpg",
+                    mobileNumber: user?.mobileNumber,
+                    email: user?.email,
+                    userType: user?.userType,
+                }
+            };
+        }));
+        console.log('requirementsWithuserDetails:', requirementsWithuserDetails);
+        return res.status(200).json({
+            message: "Requirements retrieved successfully",
+            data: requirementsWithuserDetails
+        });
+    } catch (error) {
+        console.error("getAllRequirements error:", error);
+        return res.status(500).json({ message: "An error occurred", error: error instanceof Error ? error.message : String(error) });
+    }
+}
 
 // get requirement list
 export const getUserRequirements = async (req: Request, res: Response) => {
@@ -290,7 +439,11 @@ export const getUserRequirements = async (req: Request, res: Response) => {
                             createdAt: enquiry.createdAt,
                             user: enquiry.user ? {
                                 name: enquiry.user.fullName,
-                                email: enquiry.user.email
+                                email: enquiry.user.email,
+                                mobileNumber: enquiry.user.mobileNumber,
+                                image: enquiry.user.userProfileKey ? generatePresignedUrl(enquiry.user.userProfileKey) : "https://randomuser.me/api/portraits/men/1.jpg",
+                                userType: enquiry.user.userType,
+                                timeStamp: formatTimeStamp(enquiry.createdAt)
                             } : null
                         }))
                     },

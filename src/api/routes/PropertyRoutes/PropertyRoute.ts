@@ -1,11 +1,11 @@
-import { deleteProperty, getAllProperties, getPropertyById, getPropertyLeands, updateIsSold, updatePropertyStatus} from '@/api/controllers/property/PropertyController';
+import { deleteProperty, getAllProperties, getPropertyById, getPropertyLeands, sharePropertyEmailNotification, updateIsSold, updatePropertyStatus} from '@/api/controllers/property/PropertyController';
 import { searchProperty } from '@/api/controllers/property/PropertyController';
 import { createOrUpdateProperty } from '@/api/controllers/property/createOrUpdateProperty';
 import { Router } from 'express';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { trendingProperty } from '@/api/controllers/property/PropertyController';
 import{offeringProperty} from '@/api/controllers/property/PropertyController';
-import { CreateOrUpdateRequirement, createUserRequirementsEnquiry, deleteUserRequirementsEnquiry, getRequirementEnquiries, getUserRequirements, getUserRequirementsEnquiry, createRequirementEnquiry, deleteUserRequirements, updateUserRequirementsFoundStatus } from '@/api/controllers/property/RequirementsController';
+import { CreateOrUpdateRequirement, createUserRequirementsEnquiry, deleteUserRequirementsEnquiry, getRequirementEnquiries, getUserRequirements, getUserRequirementsEnquiry, createRequirementEnquiry, deleteUserRequirements, updateUserRequirementsFoundStatus, getAllRequirements } from '@/api/controllers/property/RequirementsController';
 import {  uploadPropertyImagesController } from '@/api/controllers/property/uploadPropertyImages';
 import multer from 'multer';
 import { getUserProperties } from '@/api/controllers/property/PropertyController';
@@ -25,9 +25,11 @@ router.post('/search-property', searchProperty);
 router.post('/trending-property', trendingProperty);
 router.post('/delete-property', deleteProperty);
 router.post('/update-is-sold', updateIsSold);
+router.post('/share-property-email-notification', sharePropertyEmailNotification);
 router.post('/get-property-leands', getPropertyLeands);
 router.post('/create-update-requirement', CreateOrUpdateRequirement); 
-router.post("/get-requirements", getUserRequirements)
+router.post("/get-user-requirements", getUserRequirements)
+router.post("/get-all-requirements", getAllRequirements)
 router.post("/delete-user-requirements", deleteUserRequirements)
 router.post("/update-user-requirements-foundstatus", updateUserRequirementsFoundStatus)
 router.post("/upload-property-images", upload.single('file'), uploadPropertyImagesController);
