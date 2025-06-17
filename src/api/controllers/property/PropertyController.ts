@@ -551,7 +551,7 @@ export const searchProperty = async (req: Request, res: Response) => {
       currentPage: page,
       totalPages: Math.ceil(validProperties.length / limit),
       hasMore: skip + validProperties.length < totalCount
-    });
+    }); 
   } catch (error) {
     console.error('Error in searchProperty:', error);
     return res.status(500).json({ message: 'Server error' });
@@ -560,7 +560,7 @@ export const searchProperty = async (req: Request, res: Response) => {
 
 export const trendingProperty = async (req: Request, res: Response) => {
   try {
-    const { subCategory, userType } = req.body;
+    const { subCategory, userType, city, state } = req.body;
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -573,45 +573,26 @@ export const trendingProperty = async (req: Request, res: Response) => {
     const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
     const republishPropertyRepo = AppDataSource.getRepository(RepublishProperty);
 
-    // First, get all unique subCategories from the database for debugging
-    const allSubCategories = await propertyRepo
-      .createQueryBuilder('property')
-      .select('DISTINCT property.subCategory', 'subCategory')
-      .getRawMany();
+    // Build where clause for property
+    const whereClause: any = {
+      subCategory: ILike(`%${subCategory}%`)
+    };
 
-    console.log('Available subCategories in database:', allSubCategories);
-
-    // Get all properties with the subCategory first (without other filters)
-    const allPropertiesWithSubCategory = await propertyRepo.find({
-      where: {
-        subCategory: ILike(`%${subCategory}%`)
-      }
-    });
-
-    console.log('Properties with subCategory (before filters):', allPropertiesWithSubCategory.length);
-    console.log('Property status counts:', {
-      active: allPropertiesWithSubCategory.filter(p => p.isActive).length,
-      inactive: allPropertiesWithSubCategory.filter(p => !p.isActive).length,
-      sold: allPropertiesWithSubCategory.filter(p => p.isSold).length,
-      unsold: allPropertiesWithSubCategory.filter(p => !p.isSold).length
-    });
+    // Add address filters if provided
+    if (city || state) {
+      whereClause.address = {};
+      if (city) whereClause.address.city = ILike(`%${city}%`);
+      if (state) whereClause.address.state = ILike(`%${state}%`);
+    }
 
     // Get all properties with debug info
     const properties = await propertyRepo.find({
-      where: {
-        // isActive: true,
-        // isSold: false,
-        subCategory: ILike(`%${subCategory}%`)
-      },
+      where: whereClause,
       relations: ['address', 'propertyImages'],
       order: {
         createdAt: 'DESC'
       }
     });
-
-    console.log('Found properties after filters:', properties.length);
-    console.log('Search subCategory:', subCategory);
-    console.log('First property subCategory (if any):', properties[0]?.subCategory);
 
     // Get republished properties
     const republishedProperties = await republishPropertyRepo.find({
@@ -620,16 +601,12 @@ export const trendingProperty = async (req: Request, res: Response) => {
       }
     });
 
-    console.log('Found republished properties:', republishedProperties.length);
-
     // Get property enquiries
     const propertyEnquiries = await propertyEnquiryRepo.find({
       where: {
         propertyId: In(properties.map(p => p.id))
       }
     });
-
-    console.log('Found property enquiries:', propertyEnquiries.length);
 
     // Count enquiries
     const enquiryCounts = propertyEnquiries.reduce((acc, enquiry) => {
@@ -643,8 +620,6 @@ export const trendingProperty = async (req: Request, res: Response) => {
       ...republishedProperties.map(rp => rp.propertyId)
     ]);
 
-    console.log('Unique property IDs:', Array.from(allPropertyIds));
-
     // Get all properties with their details
     const allProperties = await propertyRepo.find({
       where: {
@@ -653,36 +628,20 @@ export const trendingProperty = async (req: Request, res: Response) => {
       relations: ['address', 'propertyImages']
     });
 
-    console.log('All properties after filtering:', allProperties.length);
-
     // Sort properties by enquiry count
     const sortedProperties = allProperties.sort((a, b) => 
       (enquiryCounts[b.id] || 0) - (enquiryCounts[a.id] || 0)
     );
 
-    console.log('Sorted properties:', sortedProperties.length);
-
     if (!sortedProperties.length) {
       return res.status(200).json({
         success: true,
         message: 'No properties found',
-        debug: {
-          subCategory,
-          availableSubCategories: allSubCategories.map(sc => sc.subCategory),
-          propertiesWithSubCategory: allPropertiesWithSubCategory.length,
-          propertyStatus: {
-            active: allPropertiesWithSubCategory.filter(p => p.isActive).length,
-            inactive: allPropertiesWithSubCategory.filter(p => !p.isActive).length,
-            sold: allPropertiesWithSubCategory.filter(p => p.isSold).length,
-            unsold: allPropertiesWithSubCategory.filter(p => !p.isSold).length
-          },
-          propertiesFound: properties.length,
-          republishedPropertiesFound: republishedProperties.length,
-          enquiriesFound: propertyEnquiries.length,
-          uniquePropertyIds: Array.from(allPropertyIds),
-          allPropertiesAfterFilter: allProperties.length,
-          sortedPropertiesCount: sortedProperties.length
-        }
+        properties: [],
+        totalCount: 0,
+        currentPage: Number(page),
+        totalPages: 0,
+        hasMore: false
       });
     }
 
@@ -706,8 +665,6 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
     // Remove null values from filtered properties
     const validProperties = filteredProperties.filter(property => property !== null);
-
-    console.log('Valid properties after user type filtering:', validProperties.length);
 
     // Get user details for all properties
     const userIds = [...new Set(validProperties.map((p) => p.userId))];
@@ -753,18 +710,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
       totalCount: sortedProperties.length,
       currentPage: Number(page),
       totalPages: Math.ceil(sortedProperties.length / Number(limit)),
-      hasMore: skip + validProperties.length < sortedProperties.length,
-      debug: {
-        subCategory,
-        availableSubCategories: allSubCategories.map(sc => sc.subCategory),
-        propertiesFound: properties.length,
-        republishedPropertiesFound: republishedProperties.length,
-        enquiriesFound: propertyEnquiries.length,
-        uniquePropertyIds: Array.from(allPropertyIds),
-        allPropertiesAfterFilter: allProperties.length,
-        sortedPropertiesCount: sortedProperties.length,
-        validPropertiesCount: validProperties.length
-      }
+      hasMore: skip + validProperties.length < sortedProperties.length
     });
   } catch (error) {
     console.error('Error in trendingProperty:', error);
@@ -779,7 +725,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
 //offering Property controller
 export const offeringProperty = async (req: Request, res: Response) => {
   try {
-    const { filter, userType } = req.body;
+    const { filter, userType, city, state } = req.body;
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -797,6 +743,13 @@ export const offeringProperty = async (req: Request, res: Response) => {
     let whereClause: any = {};
     if (filter !== 'All') {
       whereClause.subCategory = filter;
+    }
+
+    // Add address filters if provided
+    if (city || state) {
+      whereClause.address = {};
+      if (city) whereClause.address.city = ILike(`%${city}%`);
+      if (state) whereClause.address.state = ILike(`%${state}%`);
     }
     
     // Get total count
