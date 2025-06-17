@@ -7,8 +7,11 @@ import {
     Entity,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
+    ManyToOne,
+    JoinColumn
   } from 'typeorm';
 import { randomBytes } from 'crypto';
+import { Property } from './Property';
   
   @Entity('RepublishProperty')
   export class RepublishProperty extends BaseEntity {
@@ -31,6 +34,10 @@ import { randomBytes } from 'crypto';
     })
     status!: 'Accepted' | 'Rejected' | 'Pending';
     
+    @ManyToOne(() => Property, { onDelete: 'CASCADE' })
+    @JoinColumn({ name: 'propertyId' })
+    property!: Property;
+    
     @Column({ type: 'varchar', default: 'system' })
     createdBy!: string;
     
@@ -48,15 +55,13 @@ import { randomBytes } from 'crypto';
     })
     updatedAt!: Date;
 
-
-      @BeforeInsert()
-        async generateUUID() {
-          this.id = randomBytes(16).toString('hex');
-        }
-        
-        @BeforeUpdate()
-        async updateTimestamp() {
-          // Optional: Custom update logic
-        } 
-
+    @BeforeInsert()
+    async generateUUID() {
+      this.id = randomBytes(16).toString('hex');
+    }
+    
+    @BeforeUpdate()
+    async updateTimestamp() {
+      // Optional: Custom update logic
+    } 
   }

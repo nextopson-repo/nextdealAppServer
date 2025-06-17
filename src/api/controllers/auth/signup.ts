@@ -13,15 +13,24 @@ import { AppDataSource } from '@/server';
 
 const loginSchema = z.object({
   mobileNumber: z.string().min(10, 'Mobile number must be at least 10 digits'),
+  checkBox: z.boolean().optional(),
 });
 const loginHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     // Validate the request body
     const validatedData = loginSchema.parse(req.body);
-    const { mobileNumber } = validatedData;
+    const { mobileNumber, checkBox } = validatedData;
     
     const userRepo = AppDataSource.getRepository(UserAuth);
     const user = await userRepo.findOne({ where: { mobileNumber } });
+
+    if(!checkBox){
+      handleServiceResponse(
+        new ServiceResponse(ResponseStatus.Failed, 'Please accept terms and conditions', null, StatusCodes.BAD_REQUEST),
+        res
+      );
+      return;
+    }
 
     // Case 1: New user
     if (!user) {

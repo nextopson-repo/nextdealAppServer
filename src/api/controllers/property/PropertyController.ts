@@ -6,13 +6,13 @@ import { ErrorHandler } from '@/api/middlewares/error';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { generatePresignedUrl } from '@/api/controllers/s3/awsControllers';
 import { Address } from '@/api/entity/Address';
-import { In, Between, Not } from 'typeorm';
+import { In, Between, Not, ILike } from 'typeorm';
 import { UserKyc } from '@/api/entity/userkyc';
 import { authenticate } from '@/api/middlewares/auth/Authenticate';
 import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
 import { Connections } from '@/api/entity/Connection';
 import { RepublishProperty } from '@/api/entity/RepublishProperties';
-import { sendEmailNotification, sendEmailOTP } from '@/common/utils/mailService';
+import { sendEmailNotification } from '@/common/utils/mailService';
 
 // Custom type for request user
 type RequestUser = {
@@ -216,7 +216,7 @@ export const getUserProperties = async (req: Request, res: Response, next: NextF
 
 export const getPropertyById = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { propertyId, userId, isRepublish = false } = req.body;
+    const { propertyId, userId, republishId } = req.body;
 
     if (!propertyId) {
       return res.status(400).json({ message: 'Property ID is required' });
@@ -229,9 +229,9 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
     let property: Property;
     let republishProperty: RepublishProperty | null = null;
     
-    if (isRepublish) {
+    if (republishId) {
       republishProperty = await propertyRepublishRepo.findOne({
-        where: { propertyId },
+        where: { id: republishId },
         relations: ['address', 'propertyImages'],
       });
       if (!republishProperty) {
@@ -258,9 +258,9 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
     }
 
     let user;
-    if (isRepublish && republishProperty) {
+    if (republishId) {
       user = await userRepo.findOne({
-        where: { id: republishProperty.ownerId },
+        where: { id: republishProperty?.ownerId },
         select: ['fullName', 'mobileNumber', 'email', 'userProfileKey', "userType"],
       });
     } else {
@@ -272,9 +272,9 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
 
     const userKycRepo = AppDataSource.getRepository(UserKyc);
     let userKyc;
-    if (isRepublish && republishProperty) {
+    if (republishId) {
       userKyc = await userKycRepo.findOne({
-        where: { userId: republishProperty.ownerId },
+        where: { userId: republishProperty?.ownerId },
       });
     } else {
       userKyc = await userKycRepo.findOne({
@@ -284,8 +284,8 @@ export const getPropertyById = async (req: Request, res: Response, next: NextFun
 
     // Get connection status if userId is provided
     let connectionStatus = null;
-    if (isRepublish && republishProperty) {
-      connectionStatus = republishProperty.status;
+    if (republishId) {
+      connectionStatus = republishProperty?.status;
     } else {
       if (userId) {
         if (userId === property.userId) {
@@ -570,38 +570,125 @@ export const trendingProperty = async (req: Request, res: Response) => {
 
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
+    const propertyEnquiryRepo = AppDataSource.getRepository(PropertyEnquiry);
+    const republishPropertyRepo = AppDataSource.getRepository(RepublishProperty);
 
-    // Get total count
-    const totalCount = await propertyRepo.count({
-      where: { subCategory }
+    // First, get all unique subCategories from the database for debugging
+    const allSubCategories = await propertyRepo
+      .createQueryBuilder('property')
+      .select('DISTINCT property.subCategory', 'subCategory')
+      .getRawMany();
+
+    console.log('Available subCategories in database:', allSubCategories);
+
+    // Get all properties with the subCategory first (without other filters)
+    const allPropertiesWithSubCategory = await propertyRepo.find({
+      where: {
+        subCategory: ILike(`%${subCategory}%`)
+      }
     });
 
-    // Get properties with pagination
+    console.log('Properties with subCategory (before filters):', allPropertiesWithSubCategory.length);
+    console.log('Property status counts:', {
+      active: allPropertiesWithSubCategory.filter(p => p.isActive).length,
+      inactive: allPropertiesWithSubCategory.filter(p => !p.isActive).length,
+      sold: allPropertiesWithSubCategory.filter(p => p.isSold).length,
+      unsold: allPropertiesWithSubCategory.filter(p => !p.isSold).length
+    });
+
+    // Get all properties with debug info
     const properties = await propertyRepo.find({
-      where: { subCategory },
+      where: {
+        // isActive: true,
+        // isSold: false,
+        subCategory: ILike(`%${subCategory}%`)
+      },
       relations: ['address', 'propertyImages'],
-      skip,
-      take: Number(limit),
       order: {
         createdAt: 'DESC'
       }
     });
 
-    if (!properties.length) {
+    console.log('Found properties after filters:', properties.length);
+    console.log('Search subCategory:', subCategory);
+    console.log('First property subCategory (if any):', properties[0]?.subCategory);
+
+    // Get republished properties
+    const republishedProperties = await republishPropertyRepo.find({
+      where: {
+        status: 'Accepted'
+      }
+    });
+
+    console.log('Found republished properties:', republishedProperties.length);
+
+    // Get property enquiries
+    const propertyEnquiries = await propertyEnquiryRepo.find({
+      where: {
+        propertyId: In(properties.map(p => p.id))
+      }
+    });
+
+    console.log('Found property enquiries:', propertyEnquiries.length);
+
+    // Count enquiries
+    const enquiryCounts = propertyEnquiries.reduce((acc, enquiry) => {
+      acc[enquiry.propertyId] = (acc[enquiry.propertyId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Get unique property IDs from both regular and republished properties
+    const allPropertyIds = new Set([
+      ...properties.map(p => p.id),
+      ...republishedProperties.map(rp => rp.propertyId)
+    ]);
+
+    console.log('Unique property IDs:', Array.from(allPropertyIds));
+
+    // Get all properties with their details
+    const allProperties = await propertyRepo.find({
+      where: {
+        id: In(Array.from(allPropertyIds))
+      },
+      relations: ['address', 'propertyImages']
+    });
+
+    console.log('All properties after filtering:', allProperties.length);
+
+    // Sort properties by enquiry count
+    const sortedProperties = allProperties.sort((a, b) => 
+      (enquiryCounts[b.id] || 0) - (enquiryCounts[a.id] || 0)
+    );
+
+    console.log('Sorted properties:', sortedProperties.length);
+
+    if (!sortedProperties.length) {
       return res.status(200).json({
         success: true,
         message: 'No properties found',
-        properties: [],
-        totalCount: 0,
-        currentPage: Number(page),
-        totalPages: 0,
-        hasMore: false
+        debug: {
+          subCategory,
+          availableSubCategories: allSubCategories.map(sc => sc.subCategory),
+          propertiesWithSubCategory: allPropertiesWithSubCategory.length,
+          propertyStatus: {
+            active: allPropertiesWithSubCategory.filter(p => p.isActive).length,
+            inactive: allPropertiesWithSubCategory.filter(p => !p.isActive).length,
+            sold: allPropertiesWithSubCategory.filter(p => p.isSold).length,
+            unsold: allPropertiesWithSubCategory.filter(p => !p.isSold).length
+          },
+          propertiesFound: properties.length,
+          republishedPropertiesFound: republishedProperties.length,
+          enquiriesFound: propertyEnquiries.length,
+          uniquePropertyIds: Array.from(allPropertyIds),
+          allPropertiesAfterFilter: allProperties.length,
+          sortedPropertiesCount: sortedProperties.length
+        }
       });
     }
 
     // Filter properties based on userType and WorkingWithAgent
     const filteredProperties = await Promise.all(
-      properties.map(async (property) => {
+      sortedProperties.map(async (property) => {
         const propertyOwner = await userRepo.findOne({
           where: { id: property.userId },
           select: ['userType', 'WorkingWithAgent']
@@ -620,6 +707,9 @@ export const trendingProperty = async (req: Request, res: Response) => {
     // Remove null values from filtered properties
     const validProperties = filteredProperties.filter(property => property !== null);
 
+    console.log('Valid properties after user type filtering:', validProperties.length);
+
+    // Get user details for all properties
     const userIds = [...new Set(validProperties.map((p) => p.userId))];
     const users = userIds.length > 0
       ? await userRepo.find({
@@ -628,14 +718,30 @@ export const trendingProperty = async (req: Request, res: Response) => {
         })
       : [];
 
-    const userMap = new Map(users.map((user) => [user.id, user.fullName]));
+    const userMap = new Map(users.map((user) => [user.id, user]));
 
+    // Map properties with details
     const propertiesWithDetails = await Promise.all(
       validProperties.map(async (property) => {
         const propertyResponse = await mapPropertyResponse(property);
+        const user = userMap.get(property.userId);
+        const republishInfo = republishedProperties.find(rp => rp.propertyId === property.id);
+
         return {
           ...propertyResponse,
-          ownerName: userMap.get(property.userId) || 'Unknown',
+          ownerDetails: {
+            name: user?.fullName || 'Unknown',
+            userType: user?.userType,
+            userProfileKey: user?.userProfileKey,
+            mobileNumber: user?.mobileNumber
+          },
+          isRepublished: !!republishInfo,
+          republishDetails: republishInfo ? {
+            republishId: republishInfo.id,
+            republisherId: republishInfo.republisherId,
+            status: republishInfo.status,
+            republishedAt: republishInfo.createdAt
+          } : null
         };
       })
     );
@@ -644,13 +750,29 @@ export const trendingProperty = async (req: Request, res: Response) => {
       success: true,
       message: 'Properties retrieved successfully',
       properties: propertiesWithDetails,
-      totalCount: validProperties.length,
+      totalCount: sortedProperties.length,
       currentPage: Number(page),
-      totalPages: Math.ceil(validProperties.length / Number(limit)),
-      hasMore: skip + validProperties.length < totalCount
+      totalPages: Math.ceil(sortedProperties.length / Number(limit)),
+      hasMore: skip + validProperties.length < sortedProperties.length,
+      debug: {
+        subCategory,
+        availableSubCategories: allSubCategories.map(sc => sc.subCategory),
+        propertiesFound: properties.length,
+        republishedPropertiesFound: republishedProperties.length,
+        enquiriesFound: propertyEnquiries.length,
+        uniquePropertyIds: Array.from(allPropertyIds),
+        allPropertiesAfterFilter: allProperties.length,
+        sortedPropertiesCount: sortedProperties.length,
+        validPropertiesCount: validProperties.length
+      }
     });
   } catch (error) {
-    return res.status(500).json({ message: 'Server error' });
+    console.error('Error in trendingProperty:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 };
 

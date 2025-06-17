@@ -44,4 +44,7 @@ export const env = cleanEnv(process.env, {
   MSG91_SENDER_ID: str(),
   MSG91_ROUTE: str({ default: '4' }),
   MSG91_FLOW_ID: str(),
+
+  // DVHosting Configuration
+  DVHOSTING_API_KEY: str(),
 });

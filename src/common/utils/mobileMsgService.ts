@@ -1,9 +1,10 @@
 import axios from 'axios';
 import { ServiceResponse, ResponseStatus } from '@/common/models/serviceResponse';
 import https from 'https';
+import { env } from '@/common/utils/envConfig';
 
 // DVHosting Configuration
-const DVHOSTING_API_KEY = process.env.DVHOSTING_API_KEY;
+const DVHOSTING_API_KEY = env.DVHOSTING_API_KEY;
 
 if (!DVHOSTING_API_KEY) {
   throw new Error('DVHosting API key is not properly configured');

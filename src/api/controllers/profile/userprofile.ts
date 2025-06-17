@@ -141,7 +141,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
       isEmailVerified: user.isEmailVerified,
       isMobileVerified: user.isMobileVerified,
       kycStatus: kyc?.kycStatus || "Pending",
-      userProfile: userProfileUrl || "https://futureoflife.org/wp-content/uploads/2020/08/elon_musk_royal_society.jpg",
+      userProfile:  userProfileUrl ,
       subscriptionsType: "Premium Active",
       followers: formatNumber(followerCount),
       following: formatNumber(followingCount),
