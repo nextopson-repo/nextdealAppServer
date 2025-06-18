@@ -44,7 +44,11 @@ export const sendConnectionRequest = async (req: Request, res: Response): Promis
       receiverId,
       `${requester.firstName} ${requester.lastName} sent you a follow request`,
       requester.userProfileKey || '',
-      'connection_request'
+      'connection_request',
+      `${requester.firstName} ${requester.lastName}`,
+      'View Profile',
+      undefined,
+      'Pending'
     );
 
     return res.status(201).json({
@@ -99,7 +103,11 @@ export const updateConnectionStatus = async (req: Request, res: Response): Promi
       connection.requesterId,
       `${receiver.firstName} ${receiver.lastName} ${status} your follow request`,
       receiver.userProfileKey || '',
-      'connection_response'
+      'connection_response',
+      `${receiver.firstName} ${receiver.lastName}`,
+      status === 'accepted' ? 'Message' : undefined,
+      undefined,
+      status.charAt(0).toUpperCase() + status.slice(1)
     );
 
     return res.status(200).json({ 

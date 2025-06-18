@@ -5,6 +5,7 @@ import { Address } from '@/api/entity/Address';
 import { UserAuth } from '@/api/entity';
 import { PropertyImages } from '@/api/entity/PropertyImages';
 import { PropertyTitleAndDescription } from '@/ml-models/property/TitleAndDiscription';
+import { generateNotification } from '../notification/NotificationController';
 
 // Custom type for request user
 type RequestUser = {
@@ -297,7 +298,23 @@ export const createOrUpdateProperty = async (req: PropertyRequest, res: Response
       where: { id: savedProperty.id },
       relations: ['address', 'propertyImages'],
     });
-
+    if (propertyWithRelations && propertyWithRelations.userId) {
+      generateNotification(
+        propertyWithRelations.userId,
+        `Your ${savedProperty.propertyName ? 'property' : 'project'} ${savedProperty.propertyName || savedProperty.projectName} has been successfully published on our platform`,
+        propertyWithRelations.propertyImages?.[0]?.imageKey,
+        'property',
+        user.fullName,
+        'View Property',
+        {
+          title: savedProperty.title,
+          price: propertyWithRelations.propertyPrice ? `₹${propertyWithRelations.propertyPrice}` : '',
+          location: savedProperty.address?.locality || '',
+          image: propertyWithRelations.propertyImages?.[0]?.imageKey || ''
+        },
+        'Published'
+      );
+    }
     return res.status(201).json({
       success: true,
       message: 'Property created successfully',

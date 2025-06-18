@@ -5,6 +5,7 @@ import { Property } from '@/api/entity/Property';
 import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
 import { Address } from '@/api/entity/Address';
 import { UserAuth } from '@/api/entity/UserAuth';
+import { generateNotification } from '../notification/NotificationController';
 
 type PropertyResponseType = {
   id: string;
@@ -44,6 +45,23 @@ export const createPropertyEnquiry = async (req: Request, res: Response) => {
       calling: Calling ? Calling : false,
     });
     const newPropertyEnquiry = await propertyEnquiryRepo.save(propertyEnquiry);
+    if (propertyDetails) {
+      generateNotification(
+        userId,
+        `You have a new property enquiry for ${propertyDetails.propertyName || propertyDetails.projectName}`,
+        propertyDetails.propertyImages?.[0]?.imageKey,
+        'enquiry',
+        propertyDetails.propertyName || propertyDetails.projectName || '',
+        'View Enquiry',
+        {
+          title: propertyDetails.title || propertyDetails.propertyName || propertyDetails.projectName || '',
+          price: propertyDetails.propertyPrice ? `₹${propertyDetails.propertyPrice}` : '',
+          location: propertyDetails.address?.locality || '',
+          image: propertyDetails.propertyImages?.[0]?.imageKey || ''
+        },
+        'Enquiry'
+      );
+    }
     res.status(201).json({
       message: 'Property enquiry created successfully',
       enquiry: newPropertyEnquiry,

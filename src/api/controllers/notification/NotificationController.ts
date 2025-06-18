@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '@/server';
-import { Notifications } from '@/api/entity/Notifications';
+import { Notifications, NotificationType } from '@/api/entity/Notifications';
 import { UserAuth } from '@/api/entity';
 import { generatePresignedUrl } from '../s3/awsControllers';
 import { getSocketInstance } from '@/socket';
 
 export const createNotification = async (req: Request, res: Response) => {
-  const { userId, message, type } = req.body;
+  const { userId, message, type, user, button, property, status, sound, vibration } = req.body;
 
   // Validate required fields
   if (!userId || !message || !type) {
@@ -20,28 +20,45 @@ export const createNotification = async (req: Request, res: Response) => {
     const userRepo = AppDataSource.getRepository(UserAuth);
 
     // Check if user exists
-    const user = await userRepo.findOneBy({ id: userId });
-    if (!user) {
+    const userObj = await userRepo.findOneBy({ id: userId });
+    if (!userObj) {
       return res.status(404).json({
         success: false,
         message: 'User ID is invalid or does not exist.',
       });
     }
 
-    // Use the Notifications repository to create the notification
-    const notificationRepos = AppDataSource.getRepository(Notifications);
-    const notification = notificationRepos.create({
+    // Create notification
+    const notificationRepo = AppDataSource.getRepository(Notifications);
+    const notification = notificationRepo.create({
       userId,
       message,
       type,
+      user,
+      button,
+      property,
+      status,
+      sound: sound || 'default',
+      vibration: vibration || 'default',
     });
 
-    // Save the notification
-    await notificationRepos.save(notification);
+    // Save notification
+    await notificationRepo.save(notification);
+
+    // Emit real-time notification
+    const io = getSocketInstance();
+    const notificationData = {
+      ...notification,
+      sound: notification.sound,
+      vibration: notification.vibration,
+    };
+
+    // Emit to specific user's room
+    io.to(userId).emit('notifications', notificationData);
 
     return res.status(201).json({
       success: true,
-      notification,
+      notification: notificationData,
     });
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -101,23 +118,30 @@ export const markAsRead = async (req: Request, res: Response) => {
 
 //fetchnotification
 export const fetchNotifications = async (req: Request, res: Response) => {
-  const { userId } = req.body;
+  const { userId } = req.query;
+  
+  if (!userId || typeof userId !== 'string') {
+    return res.status(400).json({ success: false, message: 'userId is required as query param' });
+  }
 
   try {
     const notificationRepository = AppDataSource.getRepository(Notifications);
-    let notifications = await notificationRepository.find({
+    const notifications = await notificationRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
     });
 
     // Generate presigned URLs for media files if they exist
-    for (let notification of notifications) {
-      if (notification.mediakey) {
-        notification.mediakey = await generatePresignedUrl(notification.mediakey);
-      }
-    }
+    const notificationsWithUrls = await Promise.all(
+      notifications.map(async (notification) => {
+        if (notification.mediakey) {
+          notification.mediakey = await generatePresignedUrl(notification.mediakey);
+        }
+        return notification;
+      })
+    );
 
-    return res.status(200).json({ success: true, notifications });
+    return res.status(200).json({ success: true, notifications: notificationsWithUrls });
   } catch (error) {
     console.error('Error fetching notifications:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
@@ -126,22 +150,51 @@ export const fetchNotifications = async (req: Request, res: Response) => {
 
 
 // generate notification
-export const generateNotification = async (userId: string, message: string, mediakey: string, type: string) => {
+export const generateNotification = async (
+  userId: string,
+  message: string,
+  mediakey?: string,
+  type?: NotificationType,
+  user?: string,
+  button?: string,
+  property?: { title?: string; price?: string; location?: string; image?: string },
+  status?: string,
+  imageKey?: string,
+  sound?: string,
+  vibration?: string,
+) => {
+  try {
+    const notificationRepo = AppDataSource.getRepository(Notifications);
+    const notification = notificationRepo.create({
+      userId,
+      message,
+      mediakey,
+      type,
+      user,
+      button,
+      property,
+      status,
+      sound: sound || 'default',
+      vibration: vibration || 'default',
+    });
 
-  const notificationRepo = AppDataSource.getRepository(Notifications);
-  const notification = notificationRepo.create({
-    userId,
-    message,
-    mediakey,
-    type,
-  });
-  await notification.save();
+    if (imageKey) {
+      notification.mediakey = await generatePresignedUrl(imageKey);
+    }
 
-  const io = getSocketInstance();
-  const noticeInfo = io.to(userId).emit('notifications', notification);
-  if (noticeInfo) {
-    return [notification, 'Notification sent successfully', 200];
-  } else {
+    await notificationRepo.save(notification);
+
+    const io = getSocketInstance();
+    const notificationData = {
+      ...notification,
+      sound: notification.sound,
+      vibration: notification.vibration,
+    };
+
+    io.to(userId).emit('notifications', notificationData);
+    return [notificationData, 'Notification sent successfully', 200];
+  } catch (error) {
+    console.error('Error generating notification:', error);
     return ['Failed to generate notification', 500];
   }
 };

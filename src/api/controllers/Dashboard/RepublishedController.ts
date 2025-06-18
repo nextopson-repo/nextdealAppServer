@@ -6,6 +6,7 @@ import { PropertyImages } from '@/api/entity/PropertyImages';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { ErrorHandler } from '@/api/middlewares/error';
 import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
+import { generateNotification } from '../notification/NotificationController';
 
 
 // Controller: Create Republisher
@@ -62,6 +63,24 @@ export const createRepublisher = async (req: Request, res: Response) => {
     });
 
     const saved = await republisherRepo.save(newRepublisher);
+
+    if (property && republisher) {
+      generateNotification(
+        property.userId,
+        `Your property ${property.propertyName || property.projectName} has received a republish request from ${republisher.fullName}`,
+        property.propertyImages?.[0]?.imageKey,
+        'republish',
+        republisher.fullName,
+        'Approve',
+        {
+          title: property.title || property.propertyName || property.projectName || '',
+          price: property.propertyPrice ? `₹${property.propertyPrice}` : '',
+          location: property.address?.locality || '',
+          image: property.propertyImages?.[0]?.imageKey || ''
+        },
+        'Pending'
+      );
+    }
 
     return res.status(201).json({
       success: true,

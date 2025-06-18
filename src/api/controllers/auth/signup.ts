@@ -7,9 +7,10 @@ import { UserAuth } from '@/api/entity/UserAuth';
 import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse';
 import { env } from '@/common/utils/envConfig';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
-import { sendEmailOTP } from '@/common/utils/mailService';
+import { sendEmailNotification, sendEmailOTP } from '@/common/utils/mailService';
 import { sendMobileOTP } from '@/common/utils/mobileMsgService';
 import { AppDataSource } from '@/server';
+import { generateNotification } from '../notification/NotificationController';
 
 const loginSchema = z.object({
   mobileNumber: z.string().min(10, 'Mobile number must be at least 10 digits'),
@@ -21,16 +22,16 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
     const validatedData = loginSchema.parse(req.body);
     const { mobileNumber, checkBox } = validatedData;
     
-    const userRepo = AppDataSource.getRepository(UserAuth);
-    const user = await userRepo.findOne({ where: { mobileNumber } });
-
-    if(!checkBox){
+    if (!checkBox) {
       handleServiceResponse(
         new ServiceResponse(ResponseStatus.Failed, 'Please accept terms and conditions', null, StatusCodes.BAD_REQUEST),
         res
       );
       return;
     }
+
+    const userRepo = AppDataSource.getRepository(UserAuth);
+    const user = await userRepo.findOne({ where: { mobileNumber } });
 
     // Case 1: New user
     if (!user) {
@@ -39,10 +40,46 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
       newUser.generateMobileOTP();
       const savedUser = await userRepo.save(newUser);
       
-      // Send OTP to mobile number
-      const otpResponse = await sendMobileOTP(mobileNumber, savedUser.mobileOTP!);
-      
-      if (otpResponse.statusCode !== StatusCodes.OK) {
+      try {
+        // Send OTP to mobile number
+        const otpResponse = await sendMobileOTP(mobileNumber, savedUser.mobileOTP!);
+        
+        if (otpResponse.statusCode !== StatusCodes.OK) {
+          handleServiceResponse(
+            new ServiceResponse(
+              ResponseStatus.Failed,
+              'Failed to send OTP. Please try again.',
+              {
+                user: {
+                  id: savedUser.id,
+                  isExistingUser: false,
+                  isFullyVerified: false
+                }
+              },
+              StatusCodes.OK
+            ),
+            res
+          );
+          return;
+        }
+
+        handleServiceResponse(
+          new ServiceResponse(
+            ResponseStatus.Success,
+            'New user. Please verify OTP and complete signup.',
+            {
+              user: {
+                id: savedUser.id,
+                isExistingUser: false,
+                isFullyVerified: false
+              }
+            },
+            StatusCodes.OK
+          ),
+          res
+        );
+      } catch (otpError) {
+        console.error('Error sending OTP:', otpError);
         handleServiceResponse(
           new ServiceResponse(
             ResponseStatus.Failed,
@@ -58,34 +95,74 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
           ),
           res
         );
+      }
+      return;
+    }
+
+    // Case 2: Existing user - Generate and send new OTP
+    try {
+      user.generateMobileOTP();
+      await userRepo.save(user);
+
+      const otpResponse = await sendMobileOTP(mobileNumber, user.mobileOTP!);
+      
+      if (otpResponse.statusCode !== StatusCodes.OK) {
+        handleServiceResponse(
+          new ServiceResponse(
+            ResponseStatus.Failed,
+            'Failed to send OTP. Please try again.',
+            {
+              user: {
+                id: user.id,
+                isExistingUser: true,
+                isFullyVerified: user.isFullyVerified()
+              }
+            },
+            StatusCodes.OK
+          ),
+          res
+        );
         return;
       }
 
+      // Case 3: Not fully verified user
+      if (!user.isFullyVerified()) {
+        handleServiceResponse(
+          new ServiceResponse(
+            ResponseStatus.Success,
+            'User not fully verified. Please complete verification.',
+            {
+              user: {
+                id: user.id,
+                isExistingUser: true,
+                isFullyVerified: false
+              }
+            },
+            StatusCodes.OK
+          ),
+          res
+        );
+        return;
+      }
+
+      // Case 4: Fully verified existing user
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Success,
-          'New user. Please verify OTP and complete signup.',
+          'OTP sent successfully',
           {
             user: {
-              id: savedUser.id,
-              isExistingUser: false,
-              isFullyVerified: false
+              id: user.id,
+              isExistingUser: true,
+              isFullyVerified: true
             }
           },
           StatusCodes.OK
         ),
         res
       );
-      return;
-    }
-
-    // Case 2: Existing user - Generate and send new OTP
-    user.generateMobileOTP();
-    await userRepo.save(user);
-
-    const otpResponse = await sendMobileOTP(mobileNumber, user.mobileOTP!);
-    
-    if (otpResponse.statusCode !== StatusCodes.OK) {
+    } catch (otpError) {
+      console.error('Error sending OTP:', otpError);
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Failed,
@@ -101,45 +178,7 @@ const loginHandler = async (req: Request, res: Response): Promise<void> => {
         ),
         res
       );
-      return;
     }
-
-    // Case 3: Not fully verified user
-    if (!user.isFullyVerified()) {
-      handleServiceResponse(
-        new ServiceResponse(
-          ResponseStatus.Success,
-          'User not fully verified. Please complete verification.',
-          {
-            user: {
-              id: user.id,
-              isExistingUser: true,
-              isFullyVerified: false
-            }
-          },
-          StatusCodes.OK
-        ),
-        res
-      );
-      return;
-    }
-
-    // Case 4: Fully verified existing user
-    handleServiceResponse(
-      new ServiceResponse(
-        ResponseStatus.Success,
-        'OTP sent successfully',
-        {
-          user: {
-            id: user.id,
-            isExistingUser: true,
-            isFullyVerified: true
-          }
-        },
-        StatusCodes.OK
-      ),
-      res
-    );
 
   } catch (error) {
     console.error('Login Error:', error);
@@ -327,6 +366,17 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
       ),
       res
     );
+    generateNotification(
+      savedUser.id,
+      `Great news! Your  ${savedUser.userType === "Agent" ? "5" : "1"} property active on Nextdeal is absolutely FREE -list now and connect with serious buyers!`,
+      savedUser.userProfileKey || undefined,
+      'welcome',
+      savedUser.fullName,
+      'Get Started',
+      undefined,
+      'Welcome'
+    );
+    sendEmailNotification(email,`Great news! ${savedUser.fullName} welcome to Nextdeal`,  `Great news! Your  ${savedUser.userType==="Agent"? "5" : "1"} property active on Nextdeal is absolutely FREE -list now and connect with serious buyers!`);
   } catch (error) {
     // Rollback transaction on error
     await queryRunner.rollbackTransaction();

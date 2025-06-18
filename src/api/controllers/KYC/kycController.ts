@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { UserAuth } from "@/api/entity";
 import { UserKyc } from "@/api/entity/userkyc";
 import { AppDataSource } from "@/server";
+import { generateNotification } from "../notification/NotificationController";
 
 // Create or Update KYC
 export const createUpdateKyc = async (req: Request, res: Response) => {
@@ -42,6 +43,19 @@ export const createUpdateKyc = async (req: Request, res: Response) => {
     if (selfieImageKey) kyc.selfieImageKey = selfieImageKey;
 
     await kycRepo.save(kyc);
+
+    if(kyc.kycStatus==="Verified"){
+      generateNotification(userId, `Verification Successful! You're now a KYC Verified Agent on Nextdeal - credibility unlocked. opportunities await`, user.userProfileKey || undefined, 'verification', user.fullName, undefined, undefined, kyc.kycStatus);
+    }
+    if(kyc.kycStatus==="Rejected"){
+      generateNotification(userId, `Verification Rejected! Your KYC verification has been rejected. Please try again.`, user.userProfileKey || undefined, 'verification', user.fullName, undefined, undefined, kyc.kycStatus);
+    }
+    if(kyc.kycStatus==="Pending"){
+      generateNotification(userId, `Your KYC is still pending! Complete it now to gain trust and access all features on Nextdeal.`, user.userProfileKey || undefined, 'verification', user.fullName, 'Complete KYC', undefined, kyc.kycStatus);
+    }
+    if(kyc.rera){
+      generateNotification(userId, `Great news! Your  ${user.userType==="Agent"? "5" : "1"} property active on Nextdeal is absolutely FREE -list now and connect with serious buyers!`, user.userProfileKey || undefined, 'KYC', user.fullName, undefined, undefined, kyc.kycStatus, undefined);
+    }
 
     return res.status(isNew ? 201 : 200).json({
       message: isNew ? "KYC created successfully" : "KYC updated successfully",
