@@ -13,22 +13,44 @@ import {
 } from 'typeorm';
 import { UserAuth } from './UserAuth';
 
-@Entity('Connections')
-export class Connections extends BaseEntity {
+export enum ReportReason {
+  SPAM = 'spam',
+  INAPPROPRIATE_CONTENT = 'inappropriate_content',
+  HARASSMENT = 'harassment',
+  FAKE_ACCOUNT = 'fake_account',
+  VIOLENCE = 'violence',
+  OTHER = 'other'
+}
+
+export enum ReportStatus {
+  PENDING = 'pending',
+  REVIEWED = 'reviewed',
+  RESOLVED = 'resolved',
+  DISMISSED = 'dismissed'
+}
+
+@Entity('UserReport')
+export class UserReport extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ type: 'uuid' })
-  requesterId!: string;
+  reporterId!: string;
 
   @Column({ type: 'uuid' })
-  receiverId!: string;
+  reportedUserId!: string;
 
-  @Column({ type: 'boolean', default: true })
-  notificationEnabled!: boolean;
+  @Column({ type: 'enum', enum: ReportReason })
+  reason!: ReportReason;
 
-  @Column({ type: 'boolean', default: false })
-  isMuted!: boolean;
+  @Column({ type: 'text', nullable: true })
+  description!: string | null;
+
+  @Column({ type: 'enum', enum: ReportStatus, default: ReportStatus.PENDING })
+  status!: ReportStatus;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  adminNotes!: string | null;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
@@ -49,12 +71,12 @@ export class Connections extends BaseEntity {
 
   // Relations
   @ManyToOne(() => UserAuth, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'requesterId' })
-  requester!: UserAuth;
+  @JoinColumn({ name: 'reporterId' })
+  reporter!: UserAuth;
 
   @ManyToOne(() => UserAuth, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'receiverId' })
-  receiver!: UserAuth;
+  @JoinColumn({ name: 'reportedUserId' })
+  reportedUser!: UserAuth;
 
   @BeforeInsert()
   async generateUUID() {
@@ -65,4 +87,4 @@ export class Connections extends BaseEntity {
   async updateTimestamp() {
     // Optional: Custom update logic
   }
-}
+} 

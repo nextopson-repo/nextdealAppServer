@@ -423,6 +423,7 @@ export const searchProperty = async (req: Request, res: Response) => {
     subCategory = "All", 
     state, 
     city,
+    locality,
     isSale,
     furnishingType,
     bhkTypes,
@@ -467,10 +468,11 @@ export const searchProperty = async (req: Request, res: Response) => {
     }
 
     // Add address filters if provided
-    if (state || city) {
+    if (state || city || locality) {
       whereClause.address = {};
       if (state) whereClause.address.state = state;
       if (city) whereClause.address.city = city;
+      if (locality) whereClause.address.locality = locality;
     }
 
     // Calculate skip for pagination
@@ -725,7 +727,7 @@ export const trendingProperty = async (req: Request, res: Response) => {
 //offering Property controller
 export const offeringProperty = async (req: Request, res: Response) => {
   try {
-    const { filter, userType, city, state } = req.body;
+    const { filter, userType, city, state, isSale } = req.body;
     const { page = 1, limit = 10 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -739,34 +741,49 @@ export const offeringProperty = async (req: Request, res: Response) => {
     const propertyRepo = AppDataSource.getRepository(Property);
     const userRepo = AppDataSource.getRepository(UserAuth);
     
-    // Build where clause
-    let whereClause: any = {};
+    // Use query builder for more complex queries
+    const queryBuilder = propertyRepo.createQueryBuilder('property')
+      .leftJoinAndSelect('property.address', 'address')
+      .leftJoinAndSelect('property.propertyImages', 'propertyImages')
+      // .where('property.isActive = :isActive', { isActive: true })
+      // .andWhere('property.isSold = :isSold', { isSold: false });
+
     if (filter !== 'All') {
-      whereClause.subCategory = filter;
+      queryBuilder.andWhere('property.subCategory = :subCategory', { subCategory: filter });
     }
 
-    // Add address filters if provided
-    if (city || state) {
-      whereClause.address = {};
-      if (city) whereClause.address.city = ILike(`%${city}%`);
-      if (state) whereClause.address.state = ILike(`%${state}%`);
+    if (isSale !== undefined) {
+      queryBuilder.andWhere('property.isSale = :isSale', { isSale });
     }
-    
-    // Get total count
-    const totalCount = await propertyRepo.count({
-      where: whereClause
+
+    if (city) {
+      queryBuilder.andWhere('LOWER(address.city) LIKE LOWER(:city)', { city: `%${city}%` });
+    }
+
+    if (state) {
+      queryBuilder.andWhere('LOWER(address.state) LIKE LOWER(:state)', { state: `%${state}%` });
+    }
+
+    console.log('Query parameters:', {
+      filter,
+      userType,
+      city,
+      state,
+      isSale
     });
+
+    // Get total count
+    const totalCount = await queryBuilder.getCount();
+    console.log('Total count:', totalCount);
 
     // Get properties with pagination
-    const properties = await propertyRepo.find({
-      where: whereClause,
-      relations: ['address', 'propertyImages'],
-      skip,
-      take: Number(limit),
-      order: {
-        createdAt: 'DESC'
-      }
-    });
+    const properties = await queryBuilder
+      .skip(skip)
+      .take(Number(limit))
+      .orderBy('property.createdAt', 'DESC')
+      .getMany();
+
+    console.log('Found properties:', properties.length);
 
     if (!properties || properties.length === 0) {
       return res.status(200).json({
@@ -802,6 +819,7 @@ export const offeringProperty = async (req: Request, res: Response) => {
 
     // Remove null values from filtered properties
     const validProperties = filteredProperties.filter(property => property !== null);
+    console.log('Valid properties after filtering:', validProperties.length);
 
     // Map properties with presigned URLs
     const propertiesWithUrls = await Promise.all(
@@ -1312,3 +1330,114 @@ export const sharePropertyEmailNotification = async (req: Request, res: Response
     });
   }
 }
+
+// get slides for splash screen
+export const getSlides = async (req: Request, res: Response) => {
+  try {
+    // Using a static array for slides since this is splash screen content
+    const slides = [
+      {
+        id: '1',
+        title: 'Find Your Dream Home with Ease!',
+        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c",
+      },
+      {
+        id: '2',
+        title: 'Discover Amazing\nProperties',
+        image: "https://i.pinimg.com/736x/80/04/eb/8004eb1a8fc7859735df1c2f6f7cb210.jpg",
+      },
+      {
+        id: '3',
+        title: 'Discover Amazing\nProperties',
+        image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914",
+      },
+      {
+        id: '4',
+        title: 'Get the Best\nDeals',
+        image: "https://i.pinimg.com/736x/80/5e/0d/805e0d50c567e1dec13863ef4f140e02.jpg",
+      },
+      {
+        id: '5',
+        title: 'Start Your Journey\nToday',
+        image: "https://i.pinimg.com/736x/4f/85/94/4f8594589d64ea636a3603b64b5328b1.jpg",
+      },
+    ];
+
+    // Set cache headers
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+    res.setHeader('Content-Type', 'application/json');
+
+    // Send response immediately
+    return res.status(200).json({
+      success: true,
+      message: 'Slides retrieved successfully',
+      slides
+    });
+  } catch (error) {
+    console.error('Error in getSlides:', error);
+    
+    // Send error response immediately
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};
+
+// property Filter data
+export const getPropertyFilterData = async (req: Request, res: Response) => {
+  try {
+    const { state, city, locality } = req.body;
+
+    // Get unique property types
+    const propertyTypes = await Property.createQueryBuilder('property')
+      .select('DISTINCT property.subCategory', 'subCategory')
+      .where('property.isActive = :isActive', { isActive: true })
+      .getRawMany();
+
+    // Get unique furnishing types
+    const furnishingTypes = await Property.createQueryBuilder('property')
+      .select('DISTINCT property.furnishing', 'furnishing')
+      .where('property.isActive = :isActive', { isActive: true })
+      .andWhere('property.furnishing IS NOT NULL')
+      .getRawMany();
+
+    // Get unique BHK types
+    const bhkTypes = await Property.createQueryBuilder('property')
+      .select('DISTINCT property.bhks', 'bhks')
+      .where('property.isActive = :isActive', { isActive: true })
+      .andWhere('property.bhks IS NOT NULL')
+      .getRawMany();
+
+    // Get price range
+    const priceRange = await Property.createQueryBuilder('property')
+      .select('MIN(property.propertyPrice)', 'min')
+      .addSelect('MAX(property.propertyPrice)', 'max')
+      .where('property.isActive = :isActive', { isActive: true })
+      .getRawOne();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        propertyTypes: propertyTypes.map(pt => pt.subCategory),
+        furnishingTypes: furnishingTypes.map(ft => ft.furnishing),
+        bhkTypes: bhkTypes.map(bt => `${bt.bhks} BHK`),
+        priceRange: {
+          min: Math.floor(priceRange.min / 1000), // Convert to thousands
+          max: Math.ceil(priceRange.max / 1000),
+          step: 10
+        },
+        listedBy: ['Agent', 'Owner', 'EndUser', 'Investor'],
+        RERAStatus: ['Approved']
+      }
+    });
+  } catch (error) {
+    console.error('Error in getPropertyFilterData:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+};

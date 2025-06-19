@@ -105,6 +105,27 @@ export class UserAuth extends BaseEntity {
   // @OneToMany('UserReview', 'reviewer')
   // givenReviews!: UserReview[];
 
+  // Connection relations
+  @OneToMany('Connections', 'requester')
+  sentConnections!: any[];
+
+  @OneToMany('Connections', 'receiver')
+  receivedConnections!: any[];
+
+  // Block relations
+  @OneToMany('BlockUser', 'blocker')
+  blockedUsers!: any[];
+
+  @OneToMany('BlockUser', 'blockedUser')
+  blockedByUsers!: any[];
+
+  // Report relations
+  @OneToMany('UserReport', 'reporter')
+  reportedUsers!: any[];
+
+  @OneToMany('UserReport', 'reportedUser')
+  reportedByUsers!: any[];
+
   @BeforeInsert()
   async generateUUID() {
     this.id = randomBytes(16).toString('hex');

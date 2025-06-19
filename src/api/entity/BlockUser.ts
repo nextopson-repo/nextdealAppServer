@@ -13,22 +13,22 @@ import {
 } from 'typeorm';
 import { UserAuth } from './UserAuth';
 
-@Entity('Connections')
-export class Connections extends BaseEntity {
+@Entity('BlockUser')
+export class BlockUser extends BaseEntity {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
   @Column({ type: 'uuid' })
-  requesterId!: string;
+  blockerId!: string;
 
   @Column({ type: 'uuid' })
-  receiverId!: string;
+  blockedUserId!: string;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  reason!: string | null;
 
   @Column({ type: 'boolean', default: true })
-  notificationEnabled!: boolean;
-
-  @Column({ type: 'boolean', default: false })
-  isMuted!: boolean;
+  isActive!: boolean;
 
   @Column({ type: 'varchar', default: 'system' })
   createdBy!: string;
@@ -49,12 +49,12 @@ export class Connections extends BaseEntity {
 
   // Relations
   @ManyToOne(() => UserAuth, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'requesterId' })
-  requester!: UserAuth;
+  @JoinColumn({ name: 'blockerId' })
+  blocker!: UserAuth;
 
   @ManyToOne(() => UserAuth, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'receiverId' })
-  receiver!: UserAuth;
+  @JoinColumn({ name: 'blockedUserId' })
+  blockedUser!: UserAuth;
 
   @BeforeInsert()
   async generateUUID() {
@@ -65,4 +65,4 @@ export class Connections extends BaseEntity {
   async updateTimestamp() {
     // Optional: Custom update logic
   }
-}
+} 

@@ -1,4 +1,4 @@
-import { deleteProperty, getAllProperties, getPropertyById, getPropertyLeands, sharePropertyEmailNotification, updateIsSold, updatePropertyStatus} from '@/api/controllers/property/PropertyController';
+import { deleteProperty, getAllProperties, getPropertyById, getPropertyLeands, sharePropertyEmailNotification, updateIsSold, updatePropertyStatus, getSlides, getPropertyFilterData } from '@/api/controllers/property/PropertyController';
 import { searchProperty } from '@/api/controllers/property/PropertyController';
 import { createOrUpdateProperty } from '@/api/controllers/property/createOrUpdateProperty';
 import { Router } from 'express';
@@ -41,6 +41,8 @@ router.post('/get-requirement-enquiries', getRequirementEnquiries);
 router.post('/delete-user-requirements-enquiry', deleteUserRequirementsEnquiry);
 router.post('/create-requirement-enquiry', createRequirementEnquiry);
 router.post('/update-property-status', updatePropertyStatus);
+router.get('/get-slides', getSlides);
+router.post('/get-property-filter-data', getPropertyFilterData);
 
 
 export default router;

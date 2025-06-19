@@ -13,7 +13,6 @@ import errorHandler from '@/common/middleware/errorHandler';
 import rateLimiter from '@/common/middleware/rateLimiter';
 import requestLogger from '@/common/middleware/requestLogger';
 
-import { UserAuth } from './api/entity';
 import authRoutes from './api/routes/auth/AuthRoutes';
 import s3bucket from './api/routes/aws/s3';
 import Profile from './api/routes/UpdateProfileRoute/updateProfileRoute';
@@ -26,6 +25,10 @@ import { SavedProperty } from './api/entity/SavedProperties';
 import property from './api/routes/PropertyRoutes/PropertyRoute';
 import { PropertyRequirement } from './api/entity/PropertyRequirement';
 import { DropdownOptions } from './api/entity/DropdownOptions';
+import { Connections } from './api/entity/Connection';
+import { BlockUser} from './api/entity/BlockUser';
+import { UserAuth } from './api/entity/UserAuth';
+import { UserReport } from './api/entity/UserReport';
 // Ensure this path is correct
 import kycProcessRoutes from './api/routes/kycProcess/kycProcessRoutes';
 import { UserKyc } from './api/entity/userkyc';
@@ -41,7 +44,6 @@ import { Notifications } from './api/entity/Notifications';
 import NotificationRoutes from './api/routes/notificationsRoutes/NotificationRoutes';
 
 import ConnectionRoutes from './api/routes/connection/ConnectionRoutes';
-import { Connections } from './api/entity/Connection';
 import SocketNotificationRoute from './api/routes/notificationsRoutes/SocketNotificationRoute'
 import reviewRoutes from './api/routes/review/reviewRoute';
 import { ModelLoader } from './ml-models/modelLoader';
@@ -72,11 +74,13 @@ const dataSourceOptions: DataSourceOptions = {
     Location,
     PropertyEnquiry,
     Notifications,
-    Connections,
     UserReview,
-    RequirementEnquiry
+    RequirementEnquiry,
+    BlockUser,
+    UserReport,
+    Connections
   ],
-  synchronize: true,
+  synchronize: false,
   logging: false,
   entitySkipConstructor: false,
   connectTimeout: 60000, // Increase connection timeout to 60 seconds
