@@ -1,4 +1,4 @@
-import { randomBytes } from 'crypto';
+import { randomUUID } from 'crypto';
 import {
   BaseEntity,
   Entity,
@@ -58,7 +58,7 @@ export class BlockUser extends BaseEntity {
 
   @BeforeInsert()
   async generateUUID() {
-    this.id = randomBytes(16).toString('hex');
+    this.id = randomUUID();
   }
 
   @BeforeUpdate()

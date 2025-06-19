@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { AppDataSource } from "../../../config/database";
+import { AppDataSource } from "../../../server";
 import { UserAuth } from "../../entity/UserAuth";
 import { UserKyc } from "../../entity/userkyc";
 import { UserReview } from "../../entity/UserReview";
@@ -74,16 +74,12 @@ export const getUserProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Get connection counts
+    // Get connection counts (removed status field since it doesn't exist in our entity)
     const followingCount = await connectionRepo.count({
-      where: [
-        { requesterId: userId, status: 'accepted' },
-      ]
+      where: { requesterId: userId }
     });
     const followerCount = await connectionRepo.count({
-      where: [
-        { receiverId: userId, status: 'accepted' }
-      ]
+      where: { receiverId: userId }
     });
 
     // Calculate average rating and credibility score

@@ -1,17 +1,14 @@
-import { Server } from 'socket.io';
+import { Server as SocketIOServer } from 'socket.io';
 import { createServer } from 'http';
 import { Express, Request, Response } from 'express';
-import { AppDataSource } from './server';
 
-let io: Server;
+let io: SocketIOServer;
 
 export const initializeSocket = (app: Express) => {
   const httpServer = createServer(app);
-  io = new Server(httpServer, {
+  io = new SocketIOServer(httpServer, {
     cors: { origin: '*', credentials: true, methods: ['GET', 'POST'] },
   });
-
- 
 
   io.on('connection', (socket) => {
     console.log('New client connected:', socket.id);
@@ -19,8 +16,14 @@ export const initializeSocket = (app: Express) => {
     socket.on('joinRoom', (userId) => {
       socket.join(userId);
       console.log(`User ${userId} joined their room`);
+      
+      // Send a test message to confirm room joining
+      socket.emit('test', { message: `Successfully joined room for user ${userId}`, userId });
+      
+      // Log all rooms this socket is in
+      const rooms = Array.from(socket.rooms);
+      console.log(`Socket ${socket.id} is now in rooms:`, rooms);
     });
-
 
     // Broadcast message to all clients
     socket.on('broadcastMessage', (message) => {
@@ -35,7 +38,7 @@ export const initializeSocket = (app: Express) => {
     });
 
     socket.on('disconnect', () => {
-      console.log('Client disconnected');
+      console.log('Client disconnected:', socket.id);
     });
   });
 
@@ -53,4 +56,46 @@ export const broadcastMessage = (req: Request, res: Response) => {
   return res.status(200).json({ status: 'success', message: 'Broadcast sent' });
 };
 
-export const getSocketInstance = () => io;
+export const testSocketConnection = (req: Request, res: Response) => {
+  const { userId } = req.query;
+  
+  if (!userId) {
+    return res.status(400).json({ error: 'userId is required' });
+  }
+
+  try {
+    const io = getSocketInstance();
+    
+    // Get all sockets in the user's room
+    const room = io.sockets.adapter.rooms.get(userId as string);
+    const connectedUsers = room ? Array.from(room) : [];
+    
+    console.log(`Testing socket connection for user ${userId}`);
+    console.log(`Connected users in room:`, connectedUsers);
+    
+    // Send a test message to the user's room
+    io.to(userId as string).emit('test', { 
+      message: 'Test message from server', 
+      timestamp: new Date().toISOString(),
+      connectedUsers 
+    });
+    
+    return res.status(200).json({ 
+      status: 'success', 
+      message: 'Test message sent',
+      connectedUsers,
+      roomExists: !!room
+    });
+  } catch (error) {
+    console.error('Error testing socket connection:', error);
+    return res.status(500).json({ error: 'Socket server error' });
+  }
+};
+
+export const getSocketInstance = () => {
+  if (!io) {
+    console.error('Socket.IO server not initialized');
+    throw new Error('Socket.IO server not initialized');
+  }
+  return io;
+};

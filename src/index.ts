@@ -1,11 +1,12 @@
 // import 'reflect-metadata';
 import { env } from '@/common/utils/envConfig';
-import { app, logger } from '@/server';
+import { httpServer, logger } from '@/server';
 
-const server = app.listen(env.PORT || 5000, () => {
+const server = httpServer.listen(env.PORT || 5000, () => {
   const { NODE_ENV, HOST, PORT } = env;
   logger.info(`Server (${NODE_ENV}) running on port http://${HOST}:${PORT}`);
   logger.info(`Swagger docs available at http://${HOST}:${PORT}/api-docs`);
+  logger.info(`Socket.IO server is running on the same port`);
 });
 
 const onCloseSignal = () => {

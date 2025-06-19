@@ -3,7 +3,7 @@ import { Connections } from "@/api/entity/Connection";
 import { BlockUser } from "@/api/entity/BlockUser";
 import { UserReport, ReportStatus } from "@/api/entity/UserReport";
 import { NotificationType } from "@/api/entity/Notifications";
-import { AppDataSource } from "@/server";
+import { AppDataSource } from "../../../server";
 import { Request, Response } from 'express';
 import { generateNotification } from "../notification/NotificationController";
 import { In } from "typeorm";

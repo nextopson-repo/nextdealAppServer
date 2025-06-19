@@ -76,9 +76,9 @@ const dataSourceOptions: DataSourceOptions = {
     Notifications,
     UserReview,
     RequirementEnquiry,
+    Connections,
     BlockUser,
-    UserReport,
-    Connections
+    UserReport
   ],
   synchronize: false,
   logging: false,

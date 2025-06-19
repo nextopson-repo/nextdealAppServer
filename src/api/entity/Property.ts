@@ -176,7 +176,7 @@ export class Property extends BaseEntity {
 
   @BeforeInsert()
   async generateUUID() {
-    this.id = randomBytes(16).toString('hex');
+    this.id = randomBytes(8).toString('hex');
   }
 
   @BeforeUpdate()

@@ -46,19 +46,28 @@ export const createNotification = async (req: Request, res: Response) => {
     await notificationRepo.save(notification);
 
     // Emit real-time notification
-    const io = getSocketInstance();
-    const notificationData = {
-      ...notification,
-      sound: notification.sound,
-      vibration: notification.vibration,
-    };
+    try {
+      const io = getSocketInstance();
+      const notificationData = {
+        ...notification,
+        sound: notification.sound,
+        vibration: notification.vibration,
+      };
 
-    // Emit to specific user's room
-    io.to(userId).emit('notifications', notificationData);
+      console.log(`Emitting notification to user ${userId}:`, notificationData);
+      
+      // Emit to specific user's room
+      io.to(userId).emit('notifications', notificationData);
+      
+      console.log(`Notification emitted successfully to user ${userId}`);
+    } catch (socketError) {
+      console.error('Error emitting socket notification:', socketError);
+      // Continue with the response even if socket emission fails
+    }
 
     return res.status(201).json({
       success: true,
-      notification: notificationData,
+      notification: notification,
     });
   } catch (error) {
     console.error('Error creating notification:', error);
@@ -184,15 +193,26 @@ export const generateNotification = async (
 
     await notificationRepo.save(notification);
 
-    const io = getSocketInstance();
-    const notificationData = {
-      ...notification,
-      sound: notification.sound,
-      vibration: notification.vibration,
-    };
+    // Emit real-time notification
+    try {
+      const io = getSocketInstance();
+      const notificationData = {
+        ...notification,
+        sound: notification.sound,
+        vibration: notification.vibration,
+      };
 
-    io.to(userId).emit('notifications', notificationData);
-    return [notificationData, 'Notification sent successfully', 200];
+      console.log(`Emitting generated notification to user ${userId}:`, notificationData);
+      
+      io.to(userId).emit('notifications', notificationData);
+      
+      console.log(`Generated notification emitted successfully to user ${userId}`);
+    } catch (socketError) {
+      console.error('Error emitting generated notification:', socketError);
+      // Continue even if socket emission fails
+    }
+
+    return [notification, 'Notification sent successfully', 200];
   } catch (error) {
     console.error('Error generating notification:', error);
     return ['Failed to generate notification', 500];

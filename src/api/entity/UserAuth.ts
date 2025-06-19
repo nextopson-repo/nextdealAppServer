@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
+import { randomUUID } from 'crypto';
 import {
   BaseEntity,
   BeforeInsert,
@@ -12,6 +12,9 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { Connections } from './Connection';
+import { BlockUser } from './BlockUser';
+import { UserReport } from './UserReport';
 // import type { UserReview } from './UserReview';
 
 @Entity('UserAuth')
@@ -106,29 +109,29 @@ export class UserAuth extends BaseEntity {
   // givenReviews!: UserReview[];
 
   // Connection relations
-  @OneToMany('Connections', 'requester')
-  sentConnections!: any[];
+  @OneToMany(() => Connections, (connection) => connection.requester)
+  sentConnections!: Connections[];
 
-  @OneToMany('Connections', 'receiver')
-  receivedConnections!: any[];
+  @OneToMany(() => Connections, (connection) => connection.receiver)
+  receivedConnections!: Connections[];
 
   // Block relations
-  @OneToMany('BlockUser', 'blocker')
-  blockedUsers!: any[];
+  @OneToMany(() => BlockUser, (block) => block.blocker)
+  blockedUsers!: BlockUser[];
 
-  @OneToMany('BlockUser', 'blockedUser')
-  blockedByUsers!: any[];
+  @OneToMany(() => BlockUser, (block) => block.blockedUser)
+  blockedByUsers!: BlockUser[];
 
   // Report relations
-  @OneToMany('UserReport', 'reporter')
-  reportedUsers!: any[];
+  @OneToMany(() => UserReport, (report) => report.reporter)
+  reportedUsers!: UserReport[];
 
-  @OneToMany('UserReport', 'reportedUser')
-  reportedByUsers!: any[];
+  @OneToMany(() => UserReport, (report) => report.reportedUser)
+  reportedByUsers!: UserReport[];
 
   @BeforeInsert()
   async generateUUID() {
-    this.id = randomBytes(16).toString('hex');
+    this.id = randomUUID();
   }
 
   @BeforeUpdate()
@@ -199,7 +202,7 @@ export class UserAuth extends BaseEntity {
     this.lastLoginAttempt = new Date();
     
     if (this.failedLoginAttempts >= 5) {
-      this.lockAccount();
+      this.lockAccount(15);
     }
   }
 
@@ -208,7 +211,7 @@ export class UserAuth extends BaseEntity {
     this.lastOTPAttempt = new Date();
     
     if (this.failedOTPAttempts >= 3) {
-      this.lockAccount(5); // Lock for 5 minutes after 3 failed OTP attempts
+      this.lockAccount(30);
     }
   }
 

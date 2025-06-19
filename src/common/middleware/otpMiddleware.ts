@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserAuth } from '@/api/entity/UserAuth';
-import { AppDataSource } from '@/server';
+import { AppDataSource } from '../config/database';
 import { ServiceResponse, ResponseStatus } from '@/common/models/serviceResponse';
 import { StatusCodes } from 'http-status-codes';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';

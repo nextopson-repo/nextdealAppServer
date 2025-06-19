@@ -1,13 +1,13 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { z } from 'zod';
-import { AppDataSource } from '@/server';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { ResponseStatus, ServiceResponse } from '@/common/models/serviceResponse';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
 import { validateOTPRequest } from '@/common/middleware/otpMiddleware';
 import { sendEmailOTP } from '@/common/utils/mailService';
 import { sendMobileOTP } from '@/common/utils/mobileMsgService';
+import { AppDataSource } from '@/server';
 
 // Validation schema for resend OTP request
 const resendOtpSchema = z.object({

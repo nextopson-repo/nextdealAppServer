@@ -1,7 +1,7 @@
-import { Request, Response } from "express";
-import { AppDataSource } from "@/server";
+  import { Request, Response } from "express"
 import { UserReview } from "@/api/entity/UserReview";
 import { UserAuth } from "@/api/entity/UserAuth";
+import { AppDataSource } from "@/server";
 
 // Create a new review
 export const createReview = async (req: Request, res: Response) => {

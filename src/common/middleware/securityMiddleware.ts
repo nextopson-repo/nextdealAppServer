@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { ServiceResponse, ResponseStatus } from '@/common/models/serviceResponse';
 import { handleServiceResponse } from '@/common/utils/httpHandlers';
-import { AppDataSource } from '@/server';
+import { AppDataSource } from '../config/database';
 import { UserAuth } from '@/api/entity/UserAuth';
 import { z } from 'zod';
 
