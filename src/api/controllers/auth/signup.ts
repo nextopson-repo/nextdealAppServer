@@ -11,6 +11,7 @@ import { sendEmailNotification, sendEmailOTP } from '@/common/utils/mailService'
 import { sendMobileOTP } from '@/common/utils/mobileMsgService';
 import { AppDataSource } from '@/server';
 import { generateNotification } from '../notification/NotificationController';
+import { NotificationType } from '@/api/entity/Notifications';
 
 const loginSchema = z.object({
   mobileNumber: z.string().min(10, 'Mobile number must be at least 10 digits'),
@@ -273,16 +274,21 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
 
     const { fullName, mobileNumber, email, userType, WorkingWithAgent } = req.body;
 
-    // Check if user already exists
+    // Check if user already exists - check both mobile and email separately
     const userLoginRepository = queryRunner.manager.getRepository(UserAuth);
-    const existingUser = await userLoginRepository.findOne({
-      where: [{ mobileNumber }, { email }],
+    
+    // Check for existing user with same mobile number
+    const existingUserByMobile = await userLoginRepository.findOne({
+      where: { mobileNumber }
     });
-    const verified = existingUser?.isFullyVerified();
-    console.log("verified",verified);
-    console.log("existingUser",existingUser);
+    
+    // Check for existing user with same email
+    const existingUserByEmail = await userLoginRepository.findOne({
+      where: { email }
+    });
 
-    if (verified) {
+    // If there's a verified user with either the same mobile or email, reject
+    if (existingUserByMobile?.isFullyVerified() || existingUserByEmail?.isFullyVerified()) {
       handleServiceResponse(
         new ServiceResponse(
           ResponseStatus.Failed,
@@ -295,9 +301,26 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // If there are different unverified users with the same mobile and email, reject
+    if (existingUserByMobile && existingUserByEmail && existingUserByMobile.id !== existingUserByEmail.id) {
+      handleServiceResponse(
+        new ServiceResponse(
+          ResponseStatus.Failed,
+          'Mobile number and email are already associated with different accounts',
+          null,
+          StatusCodes.CONFLICT
+        ),
+        res
+      );
+      return;
+    }
+
     let userToSave: UserAuth;
     
-    if (existingUser && !verified) {
+    // Determine which existing user to update (if any)
+    const existingUser = existingUserByMobile || existingUserByEmail;
+    
+    if (existingUser && !existingUser.isFullyVerified()) {
       // Update existing unverified user
       existingUser.email = email;
       existingUser.userType = userType;
@@ -370,7 +393,7 @@ const signupHandler = async (req: Request, res: Response): Promise<void> => {
       savedUser.id,
       `Great news! Your  ${savedUser.userType === "Agent" ? "5" : "1"} property active on Nextdeal is absolutely FREE -list now and connect with serious buyers!`,
       savedUser.userProfileKey || undefined,
-      'welcome',
+      NotificationType.WELCOME,
       savedUser.fullName,
       'Get Started',
       undefined,

@@ -7,6 +7,7 @@ import { UserAuth } from '@/api/entity/UserAuth';
 import { ErrorHandler } from '@/api/middlewares/error';
 import { PropertyEnquiry } from '@/api/entity/PropertyEnquiry';
 import { generateNotification } from '../notification/NotificationController';
+import { sendEmailNotification } from '@/common/utils/mailService';
 
 
 // Controller: Create Republisher
@@ -62,6 +63,8 @@ export const createRepublisher = async (req: Request, res: Response) => {
       status: 'Pending'
     });
 
+    const owner = await userRepo.findOne({ where: { id: property.userId } });
+
     const saved = await republisherRepo.save(newRepublisher);
 
     if (property && republisher) {
@@ -81,6 +84,13 @@ export const createRepublisher = async (req: Request, res: Response) => {
         'Pending'
       );
     }
+
+    sendEmailNotification(
+      owner?.email || '',
+      'Republish Request',
+      `You have received a republish request for ${property.propertyName || property.projectName} from ${republisher.fullName} `,
+      
+    );
 
     return res.status(201).json({
       success: true,
